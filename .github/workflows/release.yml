@@ -60,6 +60,3 @@ jobs:
           name: sleepytroll-connect-release-apk
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
-        with:
-          files: app/build/outputs/apk/release/*.apk
-          generate_release_notes: true
