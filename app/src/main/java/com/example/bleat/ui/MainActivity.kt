@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.content.*
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.IBinder
 import androidx.activity.ComponentActivity
@@ -22,6 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.example.bleat.ble.BleEvent
 import com.example.bleat.ble.BleForegroundService
 import com.example.bleat.ble.ConnState
@@ -49,7 +51,11 @@ class MainActivity : ComponentActivity() {
 
   private val permissionsLauncher = registerForActivityResult(
     ActivityResultContracts.RequestMultiplePermissions()
-  ) { }
+  ) {
+    // The connectedDevice foreground service can only be started once a Bluetooth runtime
+    // permission is held, so it's deferred until the grant lands here (see onCreate).
+    if (hasBluetoothPermissions()) startAndBindService()
+  }
 
   private val bluetoothAdapter: BluetoothAdapter? by lazy {
     getSystemService(BluetoothManager::class.java)?.adapter
@@ -67,13 +73,15 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
-    val svcIntent = Intent(this, BleForegroundService::class.java)
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-      startForegroundService(svcIntent)
+    // The BLE service runs as a connectedDevice foreground service, which the platform only
+    // permits once a Bluetooth runtime permission is granted. On a fresh install those aren't
+    // granted yet, so request them first and start the service from the result callback;
+    // when they're already granted (later launches) start it straight away.
+    if (hasBluetoothPermissions()) {
+      startAndBindService()
     } else {
-      startService(svcIntent)
+      requestPermissions()
     }
-    bindService(svcIntent, connection, Context.BIND_AUTO_CREATE)
 
     setContent {
       val viewModel = remember { CommandsViewModel() }
@@ -169,7 +177,26 @@ class MainActivity : ComponentActivity() {
     )
   }
 
+  private fun hasBluetoothPermissions(): Boolean =
+    ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) ==
+      PackageManager.PERMISSION_GRANTED &&
+    ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) ==
+      PackageManager.PERMISSION_GRANTED
+
+  private fun startAndBindService() {
+    if (bound) return
+    val svcIntent = Intent(this, BleForegroundService::class.java)
+    startForegroundService(svcIntent) // minSdk 36 ⇒ always O+; safe to start foreground directly
+    bindService(svcIntent, connection, Context.BIND_AUTO_CREATE)
+  }
+
   private fun startScan() {
+    // startScan() needs BLUETOOTH_SCAN; if it isn't held (e.g. the user denied), request it
+    // rather than let the scanner throw SecurityException. Granting also starts the service.
+    if (!hasBluetoothPermissions()) {
+      requestPermissions()
+      return
+    }
     foundDevices.clear()
     val scanner = bluetoothAdapter?.bluetoothLeScanner ?: return
     scanner.startScan(scanCallback)
