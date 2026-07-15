@@ -6,7 +6,9 @@ plugins {
 // Optional stable release signing. Set these (CI decodes a base64 keystore secret into a file
 // and exports them) to sign with a fixed key. Without them — e.g. local dev — the release build
 // falls back to the auto-generated debug key so it stays buildable and sideloadable.
-def releaseKeystore = System.getenv("KEYSTORE_FILE")
+// Empty (not just unset): in CI the keystore step leaves KEYSTORE_FILE="" when no signing
+// secret is configured, so trim to "" and rely on Groovy truthiness below to treat it as absent.
+def releaseKeystore = System.getenv("KEYSTORE_FILE")?.trim()
 
 android {
     namespace = "com.example.bleat"
@@ -23,7 +25,7 @@ android {
         compose = true
     }
     signingConfigs {
-        if (releaseKeystore != null) {
+        if (releaseKeystore) {
             release {
                 storeFile = file(releaseKeystore)
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
@@ -36,8 +38,8 @@ android {
         release {
             // Stable release key when configured (CI secret), otherwise the debug key so a local
             // `assembleRelease` still produces a sideloadable APK with zero setup.
-            signingConfig = releaseKeystore != null ? signingConfigs.getByName("release")
-                                                     : signingConfigs.getByName("debug")
+            signingConfig = releaseKeystore ? signingConfigs.getByName("release")
+                                            : signingConfigs.getByName("debug")
             // R8 code + resource shrinking. Verify the BLE flow on-device after any keep-rule
             // change (this app has no reflection/serialization, so the risk is low).
             minifyEnabled = true
