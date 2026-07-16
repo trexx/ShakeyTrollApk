@@ -65,6 +65,9 @@ class MainActivity : ComponentActivity() {
   private val scanCallback = object : ScanCallback() {
     override fun onScanResult(callbackType: Int, result: ScanResult) {
       val d = result.device
+      // scanRecord carries the advertised name even before the device is bonded/cached.
+      val name = result.scanRecord?.deviceName ?: d.name
+      if (name?.startsWith("Sleepytroll_") != true) return
       if (foundDevices.none { it.address == d.address }) foundDevices.add(d)
     }
   }
