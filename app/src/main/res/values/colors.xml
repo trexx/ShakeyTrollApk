@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Window/splash backgrounds; must match the Compose theme's background colors. -->
+  <color name="day_background">#F6F3F9</color>
+  <color name="night_background">#14121F</color>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <style name="Theme.Sleepytroll" parent="android:Theme.Material.NoActionBar">
+    <item name="android:windowBackground">@color/night_background</item>
+    <item name="android:windowSplashScreenBackground">@color/night_background</item>
+  </style>
+</resources>

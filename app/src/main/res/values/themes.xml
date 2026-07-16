@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Host theme for the Compose UI: no decor action bar, and a window background matching
+       the Compose scheme so cold start doesn't flash a mismatched color. -->
+  <style name="Theme.Sleepytroll" parent="android:Theme.Material.Light.NoActionBar">
+    <item name="android:windowBackground">@color/day_background</item>
+    <item name="android:windowSplashScreenBackground">@color/day_background</item>
+  </style>
+</resources>

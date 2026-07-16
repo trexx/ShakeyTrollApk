@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <!-- Amber crescent, tilted like a cradle; kept inside the 66/108 safe zone -->
+  <group android:rotation="-24" android:pivotX="54" android:pivotY="54">
+    <path
+        android:fillColor="#F2B879"
+        android:pathData="M54,28 A26,26 0 0,0 54,80 A34,34 0 0,1 54,28 Z" />
+  </group>
+  <path android:fillColor="#F2B879"
+      android:pathData="M68,38 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0" />
+</vector>

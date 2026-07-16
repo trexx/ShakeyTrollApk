@@ -111,7 +111,7 @@ class BleForegroundService : Service() {
     return NotificationCompat.Builder(this, CHANNEL_ID)
       .setContentTitle("Sleepytroll BLE")
       .setContentText(content)
-      .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
+      .setSmallIcon(com.example.bleat.R.drawable.ic_stat_moon)
       .setContentIntent(pending)
       .setOngoing(true)
       .build()
