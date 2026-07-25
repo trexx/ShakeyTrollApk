@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # JDK 21 runs Gradle/AGP. The Java 25 toolchain (jvmToolchain(25)) is auto-provisioned
       # by the Foojay resolver plugin configured in settings.gradle.
