@@ -1,4 +1,4 @@
-# Sleepytroll Connect (unofficial)
+# ShakeyTrollApk
 
 A small, self-contained Android app that controls a **Sleepytroll** Bluetooth-LE baby rocker,
 built by reverse-engineering the official app, the device firmware, and a sniffed BLE session.
@@ -9,6 +9,13 @@ sensor sensitivities, run timer, serial/version, usage counters).
 > **Unofficial & experimental.** Not affiliated with or endorsed by Sleepytroll. Reverse-engineered
 > for interoperability with a device I own. Use at your own risk — this drives a motor near a
 > sleeping infant. It does **not** remove the device's built-in safety limits (see below).
+
+## Why?
+* Official APK has a 3 second unskippable intro video play before the app is usable.
+* App often died when backgrounded / idle so that intro video played quite often.
+* UI Colour theme was bright white colours not ideal at night when connecting to it.
+* Wanted a way to work around some of the runtime limits imposed in the firmware.
+* Connectivity to external servers.
 
 ## Features
 
