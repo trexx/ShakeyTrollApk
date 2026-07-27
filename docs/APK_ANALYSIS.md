@@ -150,6 +150,31 @@ After connect and first telemetry, the app runs a verification path
 the single `AT+OK;` seen in the capture right after the first `1,` line. Treat `AT+OK` as a
 "client present / keep-alive" ack.
 
+## 6a. Server endpoints (`network/`) — the app's only network traffic
+
+Manifest: `INTERNET`, `ACCESS_NETWORK_STATE`, and `android:usesCleartextTraffic="true"`.
+
+- `NetworkManager` (Retrofit + OkHttp singleton) — `BASE_URL = "http://101.34.80.93:8093/"`.
+  **Cleartext HTTP to a bare IP**; no TLS, no pinning.
+- `FirmwareApiService.getFirmwareByFileName` — `@POST("sys/file/getByFileName")`,
+  `@Query("fileName")`, returns `Call<FirmwareResponse>`;
+  `FirmwareInfo { id, filename, fileurl, fileversion, createTime, remark, etc }`.
+- Trigger: `BleDataHandler.sendBabyOKCommand` → `ATOK()` → `requestFirmwareInfo()` when
+  `GlobalMsg.newFW` is set, i.e. **on the connect handshake**, not only from the update screen.
+- `UpdateViewModel.startOTAUpdate` queries file name **`BinSTL_BT_V2_1`** (note: the firmware
+  binaries are named `BinSLT_…`), gates on device + phone battery, then
+  `BabyRockerCommandManager.setFirmwareUrl(<fileurl from the response>)` → `startOTA(…)` (§5).
+- `GlobalMsg.firmwareUrl` default:
+  `https://yyservice-1327483774.cos.ap-guangzhou.myqcloud.com/service/BinSLT_BT_V2_1_test.bin`
+  (Tencent Cloud COS, ap-guangzhou — a `_test` image).
+
+So the image URL that ends up being flashed is fetched over unauthenticated cleartext HTTP, and
+nothing in the app or the AT protocol authenticates the bytes that follow.
+
+Non-BLE extras: `assets/HomeUrl{1,2,3}.json` + `EUList.json`/`Location.json` drive per-country
+WebView links to sleepytroll.com; Google Play in-app update (`app-update`) and
+`com.android.vending.CHECK_LICENSE` are present. No Firebase/analytics configuration is shipped.
+
 ## 7. Version differences (1.0.6 vs 1.6.7)
 
 Same transport, UUIDs and AT vocabulary. 1.0.6 (`cn.Sleepytroll.connect`) is a smaller 2-dex

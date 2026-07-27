@@ -1,8 +1,9 @@
 name: Build Release APK
 
 # Build a sideloadable release APK on demand, and on version tags (v1.0, v2.3, …).
-# The APK is signed with the auto-generated debug key (fine for sideloading), uploaded as a
-# workflow artifact, and — on tag builds — attached to a GitHub Release.
+# The APK is signed with the KEYSTORE_* secrets when they're configured and with the
+# auto-generated debug key otherwise (fine for sideloading), uploaded as a workflow artifact,
+# and — on tag builds — attached to the matching GitHub Release.
 
 on:
   push:
@@ -31,8 +32,11 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
 
-      - name: Install SDK packages (API 36 + build-tools 36.1.0)
-        run: sdkmanager "platforms;android-36" "build-tools;36.1.0"
+      # compileSdk 37 needs platforms;android-37.0, and AGP 9.3.1 builds with build-tools 36.0.0
+      # (its default, not the newest published). AGP would fetch both mid-build; installing them
+      # up front keeps the download out of the Gradle run and pins what CI compiles against.
+      - name: Install SDK packages (API 37 + build-tools 36.0.0)
+        run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0"
 
       # If a stable signing key is configured (repo secrets), decode it; otherwise the build
       # falls back to the debug key (see app/build.gradle).
@@ -60,3 +64,17 @@ jobs:
           name: sleepytroll-connect-release-apk
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+
+      # Tag builds also publish the APK on the matching GitHub Release. `gh` is preinstalled on
+      # the runner, so this needs no extra action; re-running a tag build replaces the asset.
+      - name: Attach APK to the GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" app/build/outputs/apk/release/*.apk --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" app/build/outputs/apk/release/*.apk \
+              --title "$GITHUB_REF_NAME" --generate-notes
+          fi
