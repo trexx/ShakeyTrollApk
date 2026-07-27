@@ -55,10 +55,10 @@ reverse-engineering docs under [`docs/`](docs/):
 
 | | Version |
 |---|---|
-| Android compile/target/**min** SDK | **36** (Android 16) — build-tools 36.1.0 |
-| Android Gradle Plugin | 9.2.1 |
+| Android compile/target/**min** SDK | compileSdk = 37; minSdk/targetSdk = 36 (Android 16). Build-tools should match the compileSdk (37.x) |
+| Android Gradle Plugin | 9.3.1 |
 | Gradle | 9.6.1 (via the committed wrapper) |
-| Kotlin | 2.4.0 (AGP built-in Kotlin) |
+| Kotlin / Compose plugin | 2.4.10 |
 | Java bytecode target | **25** (via `jvmToolchain(25)`) |
 
 You need the **Android SDK** (platform 36 + build-tools 36.1.0) and **a JDK to run Gradle**
