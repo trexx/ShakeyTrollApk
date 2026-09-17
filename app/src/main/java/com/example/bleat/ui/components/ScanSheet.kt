@@ -31,12 +31,15 @@ import com.example.bleat.ble.ConnState
 fun ScanSheet(
   devices: List<BluetoothDevice>,
   scanning: Boolean,
+  scanError: String?,
   connState: ConnState,
   connectedDevice: BluetoothDevice?,
+  rememberedDevice: Pair<String, String>?,
   permissionsGranted: Boolean,
   onStartScan: () -> Unit,
   onStopScan: () -> Unit,
   onConnect: (BluetoothDevice) -> Unit,
+  onConnectRemembered: (String) -> Unit,
   onDisconnect: () -> Unit,
   onRequestPermissions: () -> Unit,
   onDismiss: () -> Unit,
@@ -81,6 +84,17 @@ fun ScanSheet(
         Spacer(Modifier.height(12.dp))
       }
 
+      // Last device first, so a reconnect is one tap and doesn't need the scan to find it.
+      rememberedDevice
+        ?.takeIf { (address, _) -> connState != ConnState.CONNECTED && devices.none { it.address == address } }
+        ?.let { (address, name) ->
+          DeviceRow(
+            title = name,
+            subtitle = "Last connected · $address",
+            onClick = { onConnectRemembered(address); onDismiss() },
+          )
+        }
+
       if (scanning) {
         LinearProgressIndicator(Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
@@ -93,33 +107,17 @@ fun ScanSheet(
       }
 
       devices.forEach { device ->
-        Row(
-          Modifier
-            .fillMaxWidth()
-            .clickable {
-              onConnect(device)
-              onDismiss()
-            }
-            .padding(vertical = 12.dp),
-          verticalAlignment = Alignment.CenterVertically,
-        ) {
-          Column(Modifier.weight(1f)) {
-            Text(deviceName(device) ?: "Sleepytroll", style = MaterialTheme.typography.titleMedium)
-            Text(
-              device.address,
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-          Text(
-            "Connect",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-          )
-        }
+        DeviceRow(
+          title = deviceName(device) ?: "Sleepytroll",
+          subtitle = device.address,
+          onClick = { onConnect(device); onDismiss() },
+        )
       }
 
-      if (!scanning && devices.isEmpty() && connState != ConnState.CONNECTED) {
+      if (scanError != null) {
+        Text(scanError, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        Spacer(Modifier.height(16.dp))
+      } else if (!scanning && devices.isEmpty() && connState != ConnState.CONNECTED) {
         Text(
           "No Sleepytroll found. Make sure it's switched on and nearby.",
           style = MaterialTheme.typography.bodyMedium,
@@ -143,6 +141,23 @@ fun ScanSheet(
   }
   DisposableEffect(Unit) {
     onDispose { onStopScan() }
+  }
+}
+
+@Composable
+private fun DeviceRow(title: String, subtitle: String, onClick: () -> Unit) {
+  Row(
+    Modifier
+      .fillMaxWidth()
+      .clickable(onClick = onClick)
+      .padding(vertical = 12.dp),
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Column(Modifier.weight(1f)) {
+      Text(title, style = MaterialTheme.typography.titleMedium)
+      Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    Text("Connect", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
   }
 }
 

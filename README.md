@@ -49,8 +49,12 @@ permission, so it can't reach any of the above even if it wanted to.
 ## Features
 
 - Scan for `Sleepytroll_…` devices in a bottom sheet, connect, and auto-reconnect (3 attempts, 3 s
-  apart) to the ISSC/Microchip transparent-UART GATT service. The client runs in a
-  `connectedDevice` foreground service, so it keeps the link while the app is backgrounded.
+  apart) to the ISSC/Microchip transparent-UART GATT service. While a device is connected the
+  client runs as a `connectedDevice` foreground service, so it keeps the link while the app is
+  backgrounded; its notification shows the device and rocking state and has a **Disconnect**
+  action, and the service steps back down (notification gone) once disconnected. The last device
+  is remembered for one-tap reconnect without a scan, and the sheet offers to switch Bluetooth on
+  if it's off.
 - Controls: **start/stop** (`AT+BH`) on a big tap target, **speed** 0–100 % (`AT+FR`), **mode** —
   continuous / sensor / baby monitor (`AT+MODE`), **sleep program** S/M/L (`AT+SP`), **sound** and
   **movement** sensitivity 0–4 (`AT+SH` / `AT+AU`), **run timer** 0–180 min in 5-minute steps
@@ -190,7 +194,8 @@ the keystore and signs with it; without them, it uses the debug key.
    yourself, see above).
 2. On the phone (**Android 16+**), allow installs from your browser/file manager, then open the APK.
    It installs as **Sleepytroll**.
-3. Grant the **Nearby devices** permission, tap the connection chip to scan, pick your
+3. Grant the **Nearby devices** permission (notifications are optional: they let the connection
+   status and its Disconnect action show in the shade), tap the connection chip to scan, pick your
    `Sleepytroll_…` device, and control it.
 
 ## Project layout

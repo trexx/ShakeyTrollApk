@@ -23,6 +23,7 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import com.example.bleat.R
 import com.example.bleat.ui.MainActivity
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -52,6 +53,8 @@ class BleForegroundService : Service() {
 
   companion object {
     private const val TAG = "BleService"
+    /** Notification action: disconnect and let the service stop. */
+    const val ACTION_DISCONNECT = "com.example.bleat.action.DISCONNECT"
     val WRITE_UUID: UUID = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3")
     val NOTIFY_UUID: UUID = UUID.fromString("49535343-1e4d-4bd9-ba61-23c647249616")
     val CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
@@ -135,10 +138,16 @@ class BleForegroundService : Service() {
   override fun onCreate() {
     super.onCreate()
     createNotificationChannel()
-    ServiceCompat.startForeground(
-      this, NOTIF_ID, buildNotification("BLE service starting"),
-      ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-    )
+  }
+
+  /**
+   * The Activity only binds. [connect] starts the service and puts it in the foreground so the
+   * link outlives the Activity; [userDisconnect] (or giving up on reconnecting) steps it back
+   * down, after which it lives only as long as something is bound to it.
+   */
+  override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    if (intent?.action == ACTION_DISCONNECT) userDisconnect()
+    return START_NOT_STICKY
   }
 
   override fun onDestroy() {
@@ -156,22 +165,62 @@ class BleForegroundService : Service() {
   }
 
   private fun buildNotification(content: String): Notification {
-    val intent = Intent(this, MainActivity::class.java)
-    val pending = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+    val open = PendingIntent.getActivity(
+      this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
+    )
+    val disconnect = PendingIntent.getService(
+      this, 1, Intent(this, BleForegroundService::class.java).setAction(ACTION_DISCONNECT),
+      PendingIntent.FLAG_IMMUTABLE
+    )
     return NotificationCompat.Builder(this, CHANNEL_ID)
-      .setContentTitle("Sleepytroll BLE")
+      .setContentTitle("Sleepytroll")
       .setContentText(content)
       .setSmallIcon(R.drawable.ic_stat_moon)
-      .setContentIntent(pending)
+      .setContentIntent(open)
+      .addAction(0, "Disconnect", disconnect)
       .setOngoing(true)
+      .setSilent(true)
       .build()
+  }
+
+  private var notifiedText: String? = null
+
+  /** Reflect connection + rocking state on the notification; only re-posts when the text changes. */
+  private fun updateNotification() {
+    val name = lastDevice?.let { d -> runCatching { d.name }.getOrNull() ?: d.address } ?: "Sleepytroll"
+    val text = when (_connectionState.value) {
+      ConnState.DISCONNECTED -> return // not in the foreground; nothing to show
+      ConnState.CONNECTING -> "Connecting to $name…"
+      ConnState.RECONNECTING -> "Reconnecting to $name…"
+      ConnState.CONNECTED -> {
+        val t = _telemetry.value
+        when {
+          t == null -> "Connected to $name"
+          t.running -> "Connected to $name · Rocking ${t.speed}%"
+          t.standby -> "Connected to $name · Listening"
+          else -> "Connected to $name · Stopped"
+        }
+      }
+    }
+    if (text == notifiedText) return
+    notifiedText = text
+    getSystemService(NotificationManager::class.java).notify(NOTIF_ID, buildNotification(text))
+  }
+
+  private fun setState(state: ConnState) {
+    _connectionState.value = state
+    updateNotification()
+  }
+
+  private fun leaveForeground() {
+    notifiedText = null
+    ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+    stopSelf() // no-op while still bound; destroyed once the Activity unbinds
   }
 
   private fun logEvent(message: String) {
     Log.d(TAG, message)
     _events.tryEmit(BleEvent.Log(message))
-    val nm = getSystemService(NotificationManager::class.java)
-    nm.notify(NOTIF_ID, buildNotification(message))
   }
 
   // ---- public API ---------------------------------------------------------
@@ -182,7 +231,12 @@ class BleForegroundService : Service() {
     manualDisconnect = false
     retries = 0
     lastDevice = device
-    _connectionState.value = ConnState.CONNECTING
+    // Become a started foreground service so the link survives the Activity unbinding.
+    ContextCompat.startForegroundService(this, Intent(this, BleForegroundService::class.java))
+    ServiceCompat.startForeground(
+      this, NOTIF_ID, buildNotification("Connecting…"), ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+    )
+    setState(ConnState.CONNECTING)
     logEvent("Connecting ${device.address}")
     bluetoothGatt = device.connectGatt(this, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
   }
@@ -194,8 +248,9 @@ class BleForegroundService : Service() {
   fun userDisconnect() {
     manualDisconnect = true
     handler.removeCallbacks(reconnectRunnable)
-    _connectionState.value = ConnState.DISCONNECTED
+    setState(ConnState.DISCONNECTED)
     disconnectGatt()
+    leaveForeground()
   }
 
   /**
@@ -377,7 +432,7 @@ class BleForegroundService : Service() {
         when {
           newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS -> {
             logEvent("Connected, discovering services")
-            _connectionState.value = ConnState.CONNECTING // link up; not ready until notifications on
+            setState(ConnState.CONNECTING) // link up; not ready until notifications on
             g.discoverServices()
           }
           newState == BluetoothProfile.STATE_CONNECTED -> {
@@ -432,7 +487,7 @@ class BleForegroundService : Service() {
         }
         logEvent("Notifications enabled — sending handshake")
         retries = 0 // a fully working link resets the reconnect budget
-        _connectionState.value = ConnState.CONNECTED // ready to talk
+        setState(ConnState.CONNECTED) // ready to talk
         enqueue(SleepytrollProtocol.HANDSHAKE, Origin.HANDSHAKE)
       }
     }
@@ -464,15 +519,16 @@ class BleForegroundService : Service() {
   }
 
   private fun maybeReconnect() {
-    if (manualDisconnect) { _connectionState.value = ConnState.DISCONNECTED; return }
-    if (lastDevice == null) { _connectionState.value = ConnState.DISCONNECTED; return }
+    if (manualDisconnect) { setState(ConnState.DISCONNECTED); return }
+    if (lastDevice == null) { setState(ConnState.DISCONNECTED); leaveForeground(); return }
     if (retries >= MAX_RETRIES) {
       logEvent("Giving up reconnect")
-      _connectionState.value = ConnState.DISCONNECTED
+      setState(ConnState.DISCONNECTED)
+      leaveForeground()
       return
     }
     retries++
-    _connectionState.value = ConnState.RECONNECTING
+    setState(ConnState.RECONNECTING)
     logEvent("Reconnect attempt $retries/$MAX_RETRIES")
     handler.removeCallbacks(reconnectRunnable)
     handler.postDelayed(reconnectRunnable, RETRY_INTERVAL_MS)
@@ -493,6 +549,7 @@ class BleForegroundService : Service() {
         _telemetry.value = t
         if (t.running) _motorWarning.value = null // resumed → clear the rest notice
         _events.tryEmit(BleEvent.Status(t))
+        updateNotification()
         evaluateKeepAlive()
       }
       '3' -> {
