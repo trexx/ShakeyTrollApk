@@ -1,5 +1,6 @@
 package com.example.bleat.ui.components
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -162,5 +163,6 @@ private fun DeviceRow(title: String, subtitle: String, onClick: () -> Unit) {
 }
 
 /** BLUETOOTH_CONNECT is granted before rows render, but guard anyway — name can still throw/null. */
+@SuppressLint("MissingPermission")
 private fun deviceName(device: BluetoothDevice?): String? =
   device?.let { runCatching { it.name }.getOrNull() }
