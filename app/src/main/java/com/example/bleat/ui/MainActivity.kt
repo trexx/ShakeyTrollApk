@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.bleat.ble.BleEvent
 import com.example.bleat.ble.BleForegroundService
@@ -290,7 +291,10 @@ class MainActivity : ComponentActivity() {
     val name = runCatching { device.name }.getOrNull()
       ?: rememberedDevice?.takeIf { it.first == device.address }?.second
       ?: "Sleepytroll"
-    prefs.edit().putString(PREF_LAST_ADDRESS, device.address).putString(PREF_LAST_NAME, name).apply()
+    prefs.edit {
+      putString(PREF_LAST_ADDRESS, device.address)
+      putString(PREF_LAST_NAME, name)
+    }
     rememberedDevice = device.address to name
   }
 

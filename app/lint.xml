@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+  <!-- The adaptive launcher icon lives in mipmap-anydpi-v26 (the Android Studio template layout).
+       Lint suggests dropping the -v26 qualifier because minSdk is 36, but AGP's resource merger
+       does not compile a plain mipmap-anydpi folder (mipmap/ic_launcher then fails to resolve),
+       so the qualifier stays. -->
+  <issue id="ObsoleteSdkInt">
+    <ignore path="src/main/res/mipmap-anydpi-v26" />
+  </issue>
+</lint>

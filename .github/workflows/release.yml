@@ -1,9 +1,10 @@
 name: Build Release APK
 
-# Build a sideloadable release APK on demand, and on version tags (v1.0, v2.3, …).
-# The APK is signed with the KEYSTORE_* secrets when they're configured and with the
-# auto-generated debug key otherwise (fine for sideloading), uploaded as a workflow artifact,
-# and — on tag builds — attached to the matching GitHub Release.
+# Build a sideloadable release APK on demand, and on version tags (v1.0.1, v2.3.0, …).
+# Tag builds take their version from the tag (see app/build.gradle). The APK is signed with the
+# KEYSTORE_* secrets when they're configured and with the auto-generated debug key otherwise
+# (fine for sideloading), uploaded as a workflow artifact together with the R8 mapping file,
+# and — on tag builds — both are attached to the matching GitHub Release.
 
 on:
   push:
@@ -29,6 +30,10 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # Dependency/build caching and Gradle wrapper checksum validation.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
 
@@ -50,8 +55,14 @@ jobs:
             echo "path=$RUNNER_TEMP/release.jks" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build release APK
-        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+      # v1.2.3 -> versionName 1.2.3, versionCode 10203 (app/build.gradle). Manual runs keep the
+      # dev fallback version.
+      - name: Derive version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: echo "VERSION_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Unit tests + release APK
+        run: ./gradlew :app:testDebugUnitTest :app:assembleRelease --stacktrace
         env:
           KEYSTORE_FILE: ${{ steps.keystore.outputs.path }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -65,16 +76,25 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
+      # R8 obfuscates the release build; keep the mapping so crash traces can be read back.
+      - name: Upload R8 mapping artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sleepytroll-connect-release-mapping
+          path: app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+
       # Tag builds also publish the APK on the matching GitHub Release. `gh` is preinstalled on
       # the runner, so this needs no extra action; re-running a tag build replaces the asset.
-      - name: Attach APK to the GitHub Release
+      - name: Attach APK and mapping to the GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          assets=(app/build/outputs/apk/release/*.apk app/build/outputs/mapping/release/mapping.txt)
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" app/build/outputs/apk/release/*.apk --clobber
+            gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" app/build/outputs/apk/release/*.apk \
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
               --title "$GITHUB_REF_NAME" --generate-notes
           fi

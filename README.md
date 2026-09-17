@@ -128,7 +128,11 @@ echo "sdk.dir=$HOME/Android/Sdk" > local.properties
 
 ./gradlew :app:assembleDebug     # debug APK  -> app/build/outputs/apk/debug/
 ./gradlew :app:assembleRelease   # release APK -> app/build/outputs/apk/release/
+./gradlew :app:lintDebug :app:testDebugUnitTest   # what CI gates on: lint + unit tests
 ```
+
+The protocol decoding (`ble/SleepytrollProtocol.kt`) and command encoding (`commands/`) are pure
+Kotlin with JUnit tests under `app/src/test/`, fed with the real frames from the protocol notes.
 
 The release build runs R8 with code **and** resource shrinking (~2 MB, versus ~48 MB for the
 unminified debug APK), so re-verify the BLE flow on-device after changing keep rules.
@@ -155,12 +159,17 @@ adb shell am start -n com.example.bleat/.ui.MainActivity --ei rearm_after_min 2
 
 Two workflows in `.github/workflows/`:
 
-- **`ci.yml`** — builds the debug APK on pushes to `main`, on pull requests, and on demand.
+- **`ci.yml`** — runs lint and the unit tests and builds the debug APK on pushes to `main`, on
+  pull requests, and on demand. Lint errors fail the build and the HTML report is uploaded.
 - **`release.yml`** — builds a **release APK** and uploads it as the
-  `sleepytroll-connect-release-apk` workflow artifact. Trigger it either by pushing a version tag
-  (`git tag v1.0 && git push --tags`) or from the Actions tab ("Run workflow"). Tag builds also
-  attach the APK to the matching GitHub Release, creating it with generated notes if it doesn't
-  exist yet; a re-run replaces the asset.
+  `sleepytroll-connect-release-apk` workflow artifact, plus the R8 `mapping.txt` as
+  `sleepytroll-connect-release-mapping` (keep it to read obfuscated crash traces). Trigger it
+  either by pushing a version tag (`git tag v1.0.1 && git push --tags`) or from the Actions tab
+  ("Run workflow"). Tag builds take their version from the tag — `v1.2.3` becomes `versionName`
+  `1.2.3` and `versionCode` `10203` — and also attach the APK and mapping to the matching GitHub
+  Release, creating it with generated notes if it doesn't exist yet; a re-run replaces the assets.
+  Manual runs and local builds use the `1.0.0-dev` fallback with `versionCode` 1, so always
+  install tag builds over each other, not over a dev build.
 
 ### Signing
 

@@ -10,6 +10,19 @@ plugins {
 // secret is configured, so trim to "" and rely on Groovy truthiness below to treat it as absent.
 def releaseKeystore = System.getenv("KEYSTORE_FILE")?.trim()
 
+// Release versions come from the git tag: release.yml exports VERSION_NAME=1.2.3 for tag v1.2.3.
+// Local and manual builds fall back to a dev version. Every tag up to v1.0.0 shipped with the
+// hard-coded versionCode 1, so the next release tag must be >= v1.0.1 (versionCode 10001).
+def releaseVersion = System.getenv("VERSION_NAME")?.trim() ?: null
+def semverCode(String v) {
+    def nums = v.tokenize('.').take(3).collect { part ->
+        def m = (part =~ /^\d+/)
+        m.find() ? m.group().toInteger() : 0
+    }
+    while (nums.size() < 3) nums << 0
+    return nums[0] * 10000 + nums[1] * 100 + nums[2]
+}
+
 android {
     namespace = "com.example.bleat"
     compileSdk = 37
@@ -17,8 +30,13 @@ android {
         applicationId = "com.example.bleat"
         minSdk = 36
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionName = releaseVersion ?: "1.0.0-dev"
+        versionCode = releaseVersion ? semverCode(releaseVersion) : 1
+    }
+    lint {
+        // CI gates on lintDebug: errors fail the build, warnings stay visible in the HTML report.
+        abortOnError = true
+        htmlReport = true
     }
     buildFeatures {
         compose = true

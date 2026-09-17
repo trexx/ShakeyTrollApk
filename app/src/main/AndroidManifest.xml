@@ -13,8 +13,7 @@
   <application
       android:label="@string/app_name"
       android:icon="@mipmap/ic_launcher"
-      android:theme="@style/Theme.Sleepytroll"
-      android:allowBackup="true">
+      android:theme="@style/Theme.Sleepytroll">
     <activity
         android:name="com.example.bleat.ui.MainActivity"
         android:exported="true">
