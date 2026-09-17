@@ -7,5 +7,12 @@
   "enabledManagers": [
     "gradle",
     "github-actions"
+  ],
+  "packageRules": [
+    {
+      "description": "The workflow JDK only runs Gradle; track LTS releases (21, 25) so non-LTS bumps don't break the Android SDK setup step.",
+      "matchDepNames": ["java-jdk"],
+      "allowedVersions": "/^(21|25)(\\..*)?$/"
+    }
   ]
 }

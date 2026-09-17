@@ -89,18 +89,18 @@ reverse-engineering docs under [`docs/`](docs/):
 
 ## Building
 
-**Toolchain** (all current as of this writing):
+**Toolchain**:
 
 | | Version |
 |---|---|
 | Android compile/target/**min** SDK | compileSdk = 37; minSdk/targetSdk = 36 (Android 16) |
-| Android Gradle Plugin | 9.3.1 |
-| Gradle | 9.6.1 (via the committed wrapper) |
-| Kotlin / Compose compiler plugin | 2.4.10 (Kotlin ships with AGP 9 — no separate Kotlin plugin) |
+| Android Gradle Plugin | see `build.gradle` (Renovate keeps it current) |
+| Gradle | see `gradle/wrapper/gradle-wrapper.properties` (committed wrapper) |
+| Kotlin / Compose compiler plugin | see `build.gradle` (Kotlin ships with AGP 9 — no separate Kotlin plugin) |
 | Java bytecode target | **25** (via `jvmToolchain(25)`) |
 
 You need the **Android SDK**. The platform for compileSdk 37 is packaged as `platforms;android-37.0`,
-and AGP 9.3.1 builds with **build-tools 36.0.0** (its own default, not the newest published). With
+and AGP builds with **build-tools 36.0.0** (its own default, not the newest published). With
 the SDK licences accepted, AGP fetches whatever is missing during the build; to install them
 up front instead:
 
@@ -200,3 +200,8 @@ The device enforces a **3-hour runtime cap** and **sensor-mode duration limits**
 This app surfaces them but does not defeat them; the keep-alive only re-arms the runtime timer in
 continuous/manual mode. There is **no OTA/firmware-flashing** capability in this app. Don't rely
 on any of this for unattended operation.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE). The bundled Nunito font is under the SIL Open Font License
+(`app/src/main/assets/fonts/OFL-Nunito.txt`).
