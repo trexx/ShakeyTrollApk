@@ -42,6 +42,7 @@ fun ControlSections(
   deviceInfo: DeviceInfo?,
   enabled: Boolean,
   keepAlive: Boolean,
+  keepAliveStatus: String?,
   onKeepAlive: (Boolean) -> Unit,
   onSlider: (String, Int) -> Unit,
   onOption: (String, Int) -> Unit,
@@ -98,12 +99,16 @@ fun ControlSections(
         Column(Modifier.weight(1f)) {
           Text("3-hour keep-alive", style = MaterialTheme.typography.bodyMedium)
           Text(
-            "Re-arms the motor's 3-hour limit while rocking",
+            "Stop/start re-arm at 165 motor-minutes, only while rocking",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
         Switch(checked = keepAlive, onCheckedChange = onKeepAlive, enabled = enabled)
+      }
+      keepAliveStatus?.let {
+        Spacer(Modifier.height(4.dp))
+        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
       }
     }
     Spacer(Modifier.height(12.dp))
