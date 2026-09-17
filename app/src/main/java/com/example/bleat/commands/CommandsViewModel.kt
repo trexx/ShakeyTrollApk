@@ -5,6 +5,7 @@ import com.example.bleat.ble.Telemetry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.Locale
 
 /** Display + current-value state for one control. */
 data class CommandUiState(
@@ -24,9 +25,9 @@ data class CommandUiState(
 )
 
 /**
- * Holds the Sleepytroll control set and turns UI interactions into the exact AT commands.
- * Command building lives here (not in the UI) so encodings (hex/decimal/letter) are correct.
- * The caller wires [sender] to the BLE service.
+ * Holds the Sleepytroll control set ([SleepytrollCommands]) and turns UI interactions into the
+ * exact AT commands. Command building lives here (not in the UI) so encodings (hex/decimal/letter)
+ * are correct. The caller wires [sender] to the BLE service.
  */
 class CommandsViewModel : ViewModel() {
 
@@ -37,49 +38,7 @@ class CommandsViewModel : ViewModel() {
   // status frame that still reflects the old value doesn't yank the control back.
   private val suppressUntil = mutableMapOf<String, Long>()
 
-  private val models: List<CommandModel> = listOf(
-    CommandModel.Toggle(
-      id = "bh", label = "Rocking",
-      default = false, onCommand = "AT+BH=01;", offCommand = "AT+BH=00;"
-    ),
-    CommandModel.Slider(
-      id = "fr", label = "Speed",
-      min = 0, max = 100, step = 1, default = 50, template = "AT+FR=%02x;", unit = "%"
-    ),
-    CommandModel.Options(
-      id = "mode", label = "Mode",
-      choices = listOf(
-        CommandModel.Options.Choice("Continuous", "AT+MODE=01;"),
-        CommandModel.Options.Choice("Sensor", "AT+MODE=02;"),
-        CommandModel.Options.Choice("Baby monitor", "AT+MODE=03;")
-      ),
-      defaultIndex = 0
-    ),
-    CommandModel.Options(
-      id = "sp", label = "Sleep program",
-      choices = listOf(
-        CommandModel.Options.Choice("Short", "AT+SP=S;"),
-        CommandModel.Options.Choice("Medium", "AT+SP=M;"),
-        CommandModel.Options.Choice("Long", "AT+SP=L;")
-      ),
-      defaultIndex = 0
-    ),
-    CommandModel.Slider(
-      id = "sh", label = "Sound sensitivity",
-      min = 0, max = 4, step = 1, default = 2, template = "AT+SH=%02x;"
-    ),
-    CommandModel.Slider(
-      id = "au", label = "Movement sensitivity",
-      min = 0, max = 4, step = 1, default = 2, template = "AT+AU=%02x;"
-    ),
-    CommandModel.Slider(
-      id = "st", label = "Run timer",
-      min = 0, max = 180, step = 5, default = 30, template = "AT+ST=%02x;", unit = " min"
-    ),
-    CommandModel.Action(
-      id = "reset", label = "Reset device", command = "AT+RESET", confirm = true
-    )
-  )
+  private val models: List<CommandModel> = SleepytrollCommands.models
 
   private val _uiState = MutableStateFlow(models.map { it.toUiState() })
   val uiState: StateFlow<List<CommandUiState>> = _uiState.asStateFlow()
@@ -91,9 +50,17 @@ class CommandsViewModel : ViewModel() {
     is CommandModel.Action -> CommandUiState(id, label, "action", confirm = confirm)
   }
 
+  /**
+   * Ignore device-reported values for [id] for the next [ms]. Called after the user touches a
+   * control, and by the Activity around the keep-alive's own stop/start so the hero doesn't flip.
+   */
+  fun suppress(id: String, ms: Long = SUPPRESS_MS) {
+    suppressUntil[id] = System.currentTimeMillis() + ms
+  }
+
   private fun send(cmd: String, id: String, update: (CommandUiState) -> CommandUiState) {
     sender(cmd)
-    suppressUntil[id] = System.currentTimeMillis() + SUPPRESS_MS
+    suppress(id)
     _uiState.value = _uiState.value.map { if (it.id == id) update(it).copy(lastSent = cmd) else it }
   }
 
@@ -108,10 +75,10 @@ class CommandsViewModel : ViewModel() {
     _uiState.value = _uiState.value.map { s ->
       if ((suppressUntil[s.id] ?: 0L) > now) return@map s
       when (s.id) {
-        "bh" -> if (s.boolValue != t.running) s.copy(boolValue = t.running) else s
-        "fr" -> s.copy(intValue = t.speed.coerceIn(s.min, s.max))
-        "sh" -> s.copy(intValue = t.soundSensitivity.coerceIn(s.min, s.max))
-        "au" -> s.copy(intValue = t.movementSensitivity.coerceIn(s.min, s.max))
+        SleepytrollCommands.ROCKING -> if (s.boolValue != t.running) s.copy(boolValue = t.running) else s
+        SleepytrollCommands.SPEED -> s.copy(intValue = t.speed.coerceIn(s.min, s.max))
+        SleepytrollCommands.SOUND -> s.copy(intValue = t.soundSensitivity.coerceIn(s.min, s.max))
+        SleepytrollCommands.MOVEMENT -> s.copy(intValue = t.movementSensitivity.coerceIn(s.min, s.max))
         else -> s
       }
     }
@@ -125,7 +92,8 @@ class CommandsViewModel : ViewModel() {
   fun onSlider(id: String, value: Int) {
     val m = models.filterIsInstance<CommandModel.Slider>().firstOrNull { it.id == id } ?: return
     val clamped = value.coerceIn(m.min, m.max)
-    send(m.template.format(clamped), id) { it.copy(intValue = clamped) }
+    // Locale.ROOT: the wire format must never pick up localized digits.
+    send(String.format(Locale.ROOT, m.template, clamped), id) { it.copy(intValue = clamped) }
   }
 
   fun onOption(id: String, index: Int) {
@@ -145,7 +113,7 @@ class CommandsViewModel : ViewModel() {
     if (index < 0) return
     val now = System.currentTimeMillis()
     _uiState.value = _uiState.value.map { s ->
-      if (s.id == "mode" && (suppressUntil[s.id] ?: 0L) <= now && index < s.options.size)
+      if (s.id == SleepytrollCommands.MODE && (suppressUntil[s.id] ?: 0L) <= now && index < s.options.size)
         s.copy(selectedIndex = index) else s
     }
   }

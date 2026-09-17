@@ -1,6 +1,7 @@
 package com.example.bleat.ui
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
@@ -35,6 +36,8 @@ import com.example.bleat.commands.CommandsViewModel
 import com.example.bleat.ui.theme.SleepytrollTheme
 import kotlinx.coroutines.launch
 
+// Every BLE call below is reached only after hasBluetoothPermissions() is true.
+@SuppressLint("MissingPermission")
 class MainActivity : ComponentActivity() {
 
   private var service by mutableStateOf<BleForegroundService?>(null)
@@ -97,8 +100,11 @@ class MainActivity : ComponentActivity() {
 
     // Debug-only showcase of the connected UI on BLE-less emulators:
     //   adb shell am start -n com.example.bleat/.ui.MainActivity --ez demo true
-    val demo = intent.getBooleanExtra("demo", false) &&
-      (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    val demo = debuggable && intent.getBooleanExtra("demo", false)
+    // Debug-only: shrink the keep-alive thresholds so a re-arm can be watched in minutes:
+    //   adb shell am start -n com.example.bleat/.ui.MainActivity --ei rearm_after_min 2
+    val rearmTestMin = intent.getIntExtra("rearm_after_min", 0).takeIf { debuggable && it > 0 }
 
     setContent {
       val viewModel = remember { CommandsViewModel() }
@@ -109,10 +115,12 @@ class MainActivity : ComponentActivity() {
       var connState by remember { mutableStateOf(ConnState.DISCONNECTED) }
       var ack by remember { mutableStateOf<Pair<Int, String>?>(null) }
       var keepAlive by remember { mutableStateOf(false) }
+      var keepAliveStatus by remember { mutableStateOf<String?>(null) }
 
       LaunchedEffect(service) {
         val svc = service ?: return@LaunchedEffect
         viewModel.sender = { cmd -> svc.sendCommand(cmd) }
+        rearmTestMin?.let { svc.setRearmThresholdsForTesting(motorMin = it, elapsedMin = it) }
         if (demo) return@LaunchedEffect // demo state below must not be overwritten by real flows
         launch {
           svc.telemetry.collect { t ->
@@ -128,8 +136,15 @@ class MainActivity : ComponentActivity() {
         }
         launch { svc.motorWarning.collect { motorWarning = it } }
         launch { svc.connectionState.collect { connState = it } }
+        launch { svc.keepAliveEnabled.collect { keepAlive = it } }
+        launch { svc.keepAliveStatus.collect { keepAliveStatus = it } }
         svc.events.collect { ev ->
-          if (ev is BleEvent.CommandAck) ack = (ack?.first ?: 0) + 1 to ev.text
+          when (ev) {
+            is BleEvent.CommandAck -> ack = (ack?.first ?: 0) + 1 to ev.text
+            // The keep-alive's own stop/start must not flip the hero to "Tap to start" for a beat.
+            BleEvent.Rearm -> viewModel.suppress("bh", 5_000)
+            else -> {}
+          }
         }
       }
 
@@ -164,6 +179,7 @@ class MainActivity : ComponentActivity() {
           motorWarning = motorWarning,
           ack = ack,
           keepAlive = keepAlive,
+          keepAliveStatus = keepAliveStatus,
           devices = foundDevices,
           scanning = scanning,
           permissionsGranted = permissionsGranted,
@@ -172,10 +188,7 @@ class MainActivity : ComponentActivity() {
           onSlider = viewModel::onSlider,
           onOption = viewModel::onOption,
           onAction = viewModel::onAction,
-          onKeepAlive = {
-            keepAlive = it
-            service?.setKeepAlive(it)
-          },
+          onKeepAlive = { if (demo) keepAlive = it else service?.setKeepAlive(it) },
           onStartScan = ::startScan,
           onStopScan = ::stopScan,
           onConnect = {
@@ -208,8 +221,7 @@ class MainActivity : ComponentActivity() {
     permissionsLauncher.launch(
       arrayOf(
         Manifest.permission.BLUETOOTH_SCAN,
-        Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.ACCESS_FINE_LOCATION
+        Manifest.permission.BLUETOOTH_CONNECT
       )
     )
   }

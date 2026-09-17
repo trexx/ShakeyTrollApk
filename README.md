@@ -16,7 +16,8 @@ sensor sensitivities, run timer, serial/version, usage counters).
 * UI Colour theme was bright white colours not ideal at night when connecting to it.
 * Wanted a way to work around some of the runtime limits imposed in the firmware.
 * Official app talks to external servers over plaintext HTTP (see below); this one holds no
-  `INTERNET` permission at all.
+  `INTERNET` permission at all, and no location permission either (`BLUETOOTH_SCAN` is declared
+  `neverForLocation`).
 
 ## What the official app talks to
 
@@ -60,9 +61,13 @@ permission, so it can't reach any of the above even if it wanted to.
   1.5 s window after you touch one so a stale status frame can't yank it back.
 - Warning banners for **low battery** (<6 %) and the device's **3-hour "needs to rest"** notice;
   standby is shown on the main control itself. The theme follows the system light/dark setting.
-- Optional **keep-alive** switch: every 2 h 45 m it re-sends the last run-timer command and
-  `AT+BH=01;` to re-arm before the firmware's 3-hour runtime cap (continuous/manual mode only —
-  see the protocol notes).
+- Optional **keep-alive** switch: while the device reports it is rocking, the app re-arms the
+  firmware's 3-hour runtime cap shortly before it hits — at 165 motor-minutes on the channel-3
+  counter, or after 2 h 45 m of running if that counter is missing — by sending stop → start → the
+  last run-timer command, then confirms on the next status frames that the motor counter dropped
+  and says so under the switch. It never starts a motor the device doesn't already report as
+  running, a manual stop cancels any pending re-arm, and if the counter doesn't reset it switches
+  itself off (continuous/manual mode only — see the protocol notes).
 
 ## How it works (protocol in brief)
 
@@ -134,6 +139,14 @@ connected screen on an emulator with no BLE hardware:
 adb shell am start -n com.example.bleat/.ui.MainActivity --ez demo true
 ```
 
+Debug builds also accept `--ei rearm_after_min N`, which lowers both keep-alive thresholds to
+`N` minutes so the stop → start → timer re-arm and its verification can be watched on hardware
+without waiting 2 h 45 m:
+
+```bash
+adb shell am start -n com.example.bleat/.ui.MainActivity --ei rearm_after_min 2
+```
+
 ## Releases (GitHub Actions)
 
 Two workflows in `.github/workflows/`:
@@ -177,7 +190,7 @@ the keystore and signs with it; without them, it uses the debug key.
    yourself, see above).
 2. On the phone (**Android 16+**), allow installs from your browser/file manager, then open the APK.
    It installs as **Sleepytroll**.
-3. Grant **Nearby devices / Location** permissions, tap the connection chip to scan, pick your
+3. Grant the **Nearby devices** permission, tap the connection chip to scan, pick your
    `Sleepytroll_…` device, and control it.
 
 ## Project layout
