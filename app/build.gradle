@@ -52,6 +52,11 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // Offers the en-XA/ar-XB pseudo-locales in system Settings on debug builds, to spot
+            // any user-visible string that is still hardcoded.
+            pseudoLocalesEnabled = true
+        }
         release {
             // Stable release key when configured (CI secret), otherwise the debug key so a local
             // `assembleRelease` still produces a sideloadable APK with zero setup.

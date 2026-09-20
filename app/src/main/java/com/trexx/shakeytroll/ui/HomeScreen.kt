@@ -30,7 +30,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.trexx.shakeytroll.R
 import com.trexx.shakeytroll.ble.ConnState
 import com.trexx.shakeytroll.ble.DeviceInfo
 import com.trexx.shakeytroll.ble.Telemetry
@@ -168,7 +170,7 @@ private fun AckCaption(ack: Pair<Int, String>?) {
   Box(Modifier.fillMaxWidth().height(24.dp), contentAlignment = Alignment.Center) {
     AnimatedVisibility(visible, enter = fadeIn(), exit = fadeOut(tween(600))) {
       Text(
-        "Device replied: ${ack?.second.orEmpty()}",
+        stringResource(R.string.ack_caption, ack?.second.orEmpty()),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
@@ -183,7 +185,7 @@ private fun SpeedSlider(item: CommandUiState, enabled: Boolean, onSlider: (Strin
   Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
     Row(verticalAlignment = Alignment.CenterVertically) {
       Text(
-        "Speed",
+        stringResource(R.string.speed_label),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )

@@ -1,5 +1,6 @@
 package com.trexx.shakeytroll.commands
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import com.trexx.shakeytroll.ble.Telemetry
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,7 +11,7 @@ import java.util.Locale
 /** Display + current-value state for one control. */
 data class CommandUiState(
   val id: String,
-  val label: String,
+  @StringRes val labelRes: Int,
   val type: String, // toggle | slider | options | action
   val boolValue: Boolean = false,
   val intValue: Int = 0,
@@ -18,7 +19,7 @@ data class CommandUiState(
   val max: Int = 100,
   val step: Int = 1,
   val unit: String = "",
-  val options: List<String> = emptyList(),
+  @StringRes val options: List<Int> = emptyList(),
   val selectedIndex: Int = 0,
   val confirm: Boolean = false,
   val lastSent: String? = null
@@ -44,10 +45,10 @@ class CommandsViewModel : ViewModel() {
   val uiState: StateFlow<List<CommandUiState>> = _uiState.asStateFlow()
 
   private fun CommandModel.toUiState(): CommandUiState = when (this) {
-    is CommandModel.Toggle -> CommandUiState(id, label, "toggle", boolValue = default)
-    is CommandModel.Slider -> CommandUiState(id, label, "slider", intValue = default, min = min, max = max, step = step, unit = unit)
-    is CommandModel.Options -> CommandUiState(id, label, "options", options = choices.map { it.label }, selectedIndex = defaultIndex)
-    is CommandModel.Action -> CommandUiState(id, label, "action", confirm = confirm)
+    is CommandModel.Toggle -> CommandUiState(id, labelRes, "toggle", boolValue = default)
+    is CommandModel.Slider -> CommandUiState(id, labelRes, "slider", intValue = default, min = min, max = max, step = step, unit = unit)
+    is CommandModel.Options -> CommandUiState(id, labelRes, "options", options = choices.map { it.labelRes }, selectedIndex = defaultIndex)
+    is CommandModel.Action -> CommandUiState(id, labelRes, "action", confirm = confirm)
   }
 
   /**

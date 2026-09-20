@@ -22,7 +22,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.trexx.shakeytroll.R
 import com.trexx.shakeytroll.ble.ConnState
 import com.trexx.shakeytroll.ble.DeviceInfo
 import com.trexx.shakeytroll.ble.Telemetry
@@ -38,11 +40,11 @@ fun StatusHeader(
   Column(Modifier.fillMaxWidth()) {
     Row(verticalAlignment = Alignment.CenterVertically) {
       Column(Modifier.weight(1f)) {
-        Text("Sleepytroll", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.status_title), style = MaterialTheme.typography.headlineSmall)
         deviceInfo?.serial?.let { serial ->
-          val version = deviceInfo.version?.let { "  ·  v$it" } ?: ""
+          val version = deviceInfo.version?.let { stringResource(R.string.status_version_suffix, it) } ?: ""
           Text(
-            "Serial $serial$version",
+            stringResource(R.string.status_serial, serial, version),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
@@ -60,7 +62,7 @@ fun StatusHeader(
     }
     if (telemetry?.lowBattery == true) {
       Spacer(Modifier.height(12.dp))
-      WarningBanner("Battery low (${telemetry.batteryPct}%) — charge the Sleepytroll soon")
+      WarningBanner(stringResource(R.string.warning_low_battery, telemetry.batteryPct))
     }
   }
 }
@@ -69,10 +71,10 @@ fun StatusHeader(
 private fun ConnectionPill(connState: ConnState, onClick: () -> Unit) {
   val scheme = MaterialTheme.colorScheme
   val (label, container, content) = when (connState) {
-    ConnState.CONNECTED -> Triple("Connected", scheme.secondaryContainer, scheme.onSecondaryContainer)
-    ConnState.CONNECTING -> Triple("Connecting…", scheme.tertiaryContainer, scheme.onTertiaryContainer)
-    ConnState.RECONNECTING -> Triple("Reconnecting…", scheme.tertiaryContainer, scheme.onTertiaryContainer)
-    ConnState.DISCONNECTED -> Triple("Connect", Color.Transparent, scheme.primary)
+    ConnState.CONNECTED -> Triple(stringResource(R.string.conn_connected), scheme.secondaryContainer, scheme.onSecondaryContainer)
+    ConnState.CONNECTING -> Triple(stringResource(R.string.conn_connecting), scheme.tertiaryContainer, scheme.onTertiaryContainer)
+    ConnState.RECONNECTING -> Triple(stringResource(R.string.conn_reconnecting), scheme.tertiaryContainer, scheme.onTertiaryContainer)
+    ConnState.DISCONNECTED -> Triple(stringResource(R.string.conn_connect), Color.Transparent, scheme.primary)
   }
   Surface(
     onClick = onClick,
@@ -117,7 +119,7 @@ private fun BatteryChip(pct: Int, low: Boolean) {
       )
     }
     Spacer(Modifier.width(5.dp))
-    Text("$pct%", style = MaterialTheme.typography.labelMedium, color = color)
+    Text(stringResource(R.string.percent, pct), style = MaterialTheme.typography.labelMedium, color = color)
   }
 }
 

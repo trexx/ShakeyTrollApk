@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.trexx.shakeytroll.R
 import com.trexx.shakeytroll.ble.BleEvent
 import com.trexx.shakeytroll.ble.BleForegroundService
 import com.trexx.shakeytroll.ble.ConnState
@@ -108,9 +109,9 @@ class MainActivity : ComponentActivity() {
       stopScan()
       scanError = when (errorCode) {
         SCAN_FAILED_APPLICATION_REGISTRATION_FAILED ->
-          "Bluetooth scan couldn't start. Try switching Bluetooth off and on."
-        SCAN_FAILED_SCANNING_TOO_FREQUENTLY -> "Scanning too often. Wait a moment and try again."
-        else -> "Bluetooth scan failed (error $errorCode)."
+          getString(R.string.scan_error_registration)
+        SCAN_FAILED_SCANNING_TOO_FREQUENTLY -> getString(R.string.scan_error_too_frequent)
+        else -> getString(R.string.scan_error_generic, errorCode)
       }
     }
   }
@@ -128,7 +129,7 @@ class MainActivity : ComponentActivity() {
     if (!permissionsGranted) requestPermissions()
 
     rememberedDevice = prefs.getString(PREF_LAST_ADDRESS, null)?.let { address ->
-      address to (prefs.getString(PREF_LAST_NAME, null) ?: "Sleepytroll")
+      address to (prefs.getString(PREF_LAST_NAME, null) ?: getString(R.string.scan_default_name))
     }
 
     // Debug-only showcase of the connected UI on BLE-less emulators:
@@ -276,7 +277,7 @@ class MainActivity : ComponentActivity() {
 
   /** True if Bluetooth is on. Otherwise asks the user to enable it and runs [then] once they do. */
   private fun ensureBluetoothOn(then: () -> Unit): Boolean {
-    val adapter = bluetoothAdapter ?: run { scanError = "This device has no Bluetooth."; return false }
+    val adapter = bluetoothAdapter ?: run { scanError = getString(R.string.scan_error_no_bluetooth); return false }
     if (adapter.isEnabled) return true
     afterBluetoothEnabled = then
     enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
@@ -292,7 +293,7 @@ class MainActivity : ComponentActivity() {
   private fun rememberDevice(device: BluetoothDevice) {
     val name = runCatching { device.name }.getOrNull()
       ?: rememberedDevice?.takeIf { it.first == device.address }?.second
-      ?: "Sleepytroll"
+      ?: getString(R.string.scan_default_name)
     prefs.edit {
       putString(PREF_LAST_ADDRESS, device.address)
       putString(PREF_LAST_NAME, name)
@@ -312,7 +313,7 @@ class MainActivity : ComponentActivity() {
     foundDevices.clear()
     scanError = null
     val scanner = bluetoothAdapter?.bluetoothLeScanner
-      ?: run { scanError = "Bluetooth scanner unavailable."; return }
+      ?: run { scanError = getString(R.string.scan_error_no_scanner); return }
     // A short, user-initiated foreground scan: favour discovery speed over battery.
     val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
     scanner.startScan(null, settings, scanCallback)

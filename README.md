@@ -148,6 +148,10 @@ connected screen on an emulator with no BLE hardware:
 adb shell am start -n com.trexx.shakeytroll/.ui.MainActivity --ez demo true
 ```
 
+All user-visible text lives in `app/src/main/res/values/strings.xml`; debug builds enable the
+`en-XA` pseudo-locale (Settings → System → Languages) so a leftover hardcoded string stands out
+as plain English among the accented pseudo-text.
+
 Debug builds also accept `--ei rearm_after_min N`, which lowers both keep-alive thresholds to
 `N` minutes so the stop → start → timer re-arm and its verification can be watched on hardware
 without waiting 2 h 45 m:
