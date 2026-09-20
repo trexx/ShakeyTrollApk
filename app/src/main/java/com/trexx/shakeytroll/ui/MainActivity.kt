@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.ComponentName
@@ -18,6 +19,8 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.ParcelUuid
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -47,7 +50,11 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
 
   companion object {
+    private const val TAG = "MainActivity"
     private const val SCAN_MS = 6_000L
+    // If the service-UUID filter has found nothing by then, widen to an unfiltered, name-matched
+    // scan for the rest of the window, in case this device's advertisement omits the UUID.
+    private const val FILTERED_SCAN_MS = 2_500L
     private const val PREFS = "sleepytroll"
     private const val PREF_LAST_ADDRESS = "last_address"
     private const val PREF_LAST_NAME = "last_name"
@@ -88,8 +95,22 @@ class MainActivity : ComponentActivity() {
   private val mainHandler = Handler(Looper.getMainLooper())
   private val prefs by lazy { getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
 
+  // The ISSC/Microchip transparent-UART service the rocker exposes (PROTOCOL §2) and the 0x5553…
+  // variant the official app's constants name; a filter list is OR-ed. The name check in the
+  // callback stays the identity test either way: the filter only cuts down what the callback sees.
+  private val serviceFilters: List<ScanFilter> = listOf(
+    "49535343-FE7D-4AE5-8FA9-9FAFD205E455",
+    "55535343-FE7D-4AE5-8FA9-9FAFD205E455",
+  ).map { ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(it)).build() }
+
+  // A short, user-initiated foreground scan: favour discovery speed over battery.
+  private val scanSettings: ScanSettings =
+    ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
+
   private val foundDevices = mutableStateListOf<BluetoothDevice>()
   private var scanning by mutableStateOf(false)
+  private var scanFiltered = false
+  private var widenScanRunnable: Runnable? = null
   private var scanError by mutableStateOf<String?>(null)
   private var stopScanRunnable: Runnable? = null
   private var connectedDevice by mutableStateOf<BluetoothDevice?>(null)
@@ -99,10 +120,19 @@ class MainActivity : ComponentActivity() {
   private val scanCallback = object : ScanCallback() {
     override fun onScanResult(callbackType: Int, result: ScanResult) {
       val d = result.device
+      val record = result.scanRecord
       // scanRecord carries the advertised name even before the device is bonded/cached.
-      val name = result.scanRecord?.deviceName ?: d.name
+      val name = record?.deviceName ?: d.name
       if (name?.startsWith("Sleepytroll_") != true) return
-      if (foundDevices.none { it.address == d.address }) foundDevices.add(d)
+      if (foundDevices.none { it.address == d.address }) {
+        // Logged so a capture can confirm which service UUIDs the rocker actually advertises.
+        Log.d(
+          TAG,
+          "Found $name ${d.address} via ${if (scanFiltered) "service-UUID filter" else "unfiltered scan"}; " +
+            "advertised services=${record?.serviceUuids}"
+        )
+        foundDevices.add(d)
+      }
     }
 
     override fun onScanFailed(errorCode: Int) {
@@ -314,16 +344,29 @@ class MainActivity : ComponentActivity() {
     scanError = null
     val scanner = bluetoothAdapter?.bluetoothLeScanner
       ?: run { scanError = getString(R.string.scan_error_no_scanner); return }
-    // A short, user-initiated foreground scan: favour discovery speed over battery.
-    val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
-    scanner.startScan(null, settings, scanCallback)
+    scanner.startScan(serviceFilters, scanSettings, scanCallback)
+    scanFiltered = true
     scanning = true
+    widenScanRunnable = Runnable { widenScan() }.also { mainHandler.postDelayed(it, FILTERED_SCAN_MS) }
     stopScanRunnable = Runnable { stopScan() }.also { mainHandler.postDelayed(it, SCAN_MS) }
+  }
+
+  /** The UUID filter found nothing: restart unfiltered (name-matched) for the rest of the window. */
+  private fun widenScan() {
+    widenScanRunnable = null
+    if (!scanning || foundDevices.isNotEmpty()) return
+    val scanner = bluetoothAdapter?.bluetoothLeScanner ?: return
+    runCatching { scanner.stopScan(scanCallback) }
+    scanFiltered = false
+    Log.d(TAG, "Nothing matched the service-UUID filter; widening to an unfiltered scan")
+    scanner.startScan(null, scanSettings, scanCallback)
   }
 
   private fun stopScan() {
     stopScanRunnable?.let { mainHandler.removeCallbacks(it) }
     stopScanRunnable = null
+    widenScanRunnable?.let { mainHandler.removeCallbacks(it) }
+    widenScanRunnable = null
     if (scanning) {
       runCatching { bluetoothAdapter?.bluetoothLeScanner?.stopScan(scanCallback) }
       scanning = false

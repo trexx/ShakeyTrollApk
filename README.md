@@ -54,7 +54,10 @@ permission, so it can't reach any of the above even if it wanted to.
   backgrounded; its notification shows the device and rocking state and has a **Disconnect**
   action, and the service steps back down (notification gone) once disconnected. The last device
   is remembered for one-tap reconnect without a scan, and the sheet offers to switch Bluetooth on
-  if it's off.
+  if it's off. The scan filters on the transparent-UART service UUID first and, if nothing has
+  answered after 2.5 s, widens to an unfiltered name-matched scan for the rest of the 6 s window;
+  the UUIDs a found rocker advertises are logged (`adb logcat -s MainActivity`) so the filter's
+  fit can be confirmed against a real device.
 - Controls: **start/stop** (`AT+BH`) on a big tap target, **speed** 0–100 % (`AT+FR`), **mode** —
   continuous / sensor / baby monitor (`AT+MODE`), **sleep program** S/M/L (`AT+SP`), **sound** and
   **movement** sensitivity 0–4 (`AT+SH` / `AT+AU`), **run timer** 10–180 min in 5-minute steps,
