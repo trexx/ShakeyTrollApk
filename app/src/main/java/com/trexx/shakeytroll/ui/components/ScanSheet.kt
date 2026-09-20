@@ -1,4 +1,4 @@
-package com.example.bleat.ui.components
+package com.trexx.shakeytroll.ui.components
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
@@ -24,8 +24,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.example.bleat.ble.ConnState
+import com.trexx.shakeytroll.R
+import com.trexx.shakeytroll.ble.ConnState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,17 +55,17 @@ fun ScanSheet(
         .navigationBarsPadding()
         .padding(bottom = 24.dp),
     ) {
-      Text("Find your Sleepytroll", style = MaterialTheme.typography.titleLarge)
+      Text(stringResource(R.string.scan_title), style = MaterialTheme.typography.titleLarge)
       Spacer(Modifier.height(16.dp))
 
       if (!permissionsGranted) {
         Text(
-          "Bluetooth permission is needed to find and control the Sleepytroll.",
+          stringResource(R.string.scan_permission_needed),
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(16.dp))
-        Button(onClick = onRequestPermissions) { Text("Allow Bluetooth") }
+        Button(onClick = onRequestPermissions) { Text(stringResource(R.string.scan_allow_bluetooth)) }
         return@Column
       }
 
@@ -71,16 +73,16 @@ fun ScanSheet(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
           Column(Modifier.weight(1f)) {
             Text(
-              deviceName(connectedDevice) ?: "Connected device",
+              deviceName(connectedDevice) ?: stringResource(R.string.scan_connected_device),
               style = MaterialTheme.typography.titleMedium,
             )
             Text(
-              "Connected",
+              stringResource(R.string.scan_connected),
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.secondary,
             )
           }
-          TextButton(onClick = onDisconnect) { Text("Disconnect") }
+          TextButton(onClick = onDisconnect) { Text(stringResource(R.string.scan_disconnect)) }
         }
         Spacer(Modifier.height(12.dp))
       }
@@ -91,7 +93,7 @@ fun ScanSheet(
         ?.let { (address, name) ->
           DeviceRow(
             title = name,
-            subtitle = "Last connected · $address",
+            subtitle = stringResource(R.string.scan_last_connected, address),
             onClick = { onConnectRemembered(address); onDismiss() },
           )
         }
@@ -100,7 +102,7 @@ fun ScanSheet(
         LinearProgressIndicator(Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
         Text(
-          "Looking nearby…",
+          stringResource(R.string.scan_looking),
           style = MaterialTheme.typography.labelMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -109,7 +111,7 @@ fun ScanSheet(
 
       devices.forEach { device ->
         DeviceRow(
-          title = deviceName(device) ?: "Sleepytroll",
+          title = deviceName(device) ?: stringResource(R.string.scan_default_name),
           subtitle = device.address,
           onClick = { onConnect(device); onDismiss() },
         )
@@ -120,7 +122,7 @@ fun ScanSheet(
         Spacer(Modifier.height(16.dp))
       } else if (!scanning && devices.isEmpty() && connState != ConnState.CONNECTED) {
         Text(
-          "No Sleepytroll found. Make sure it's switched on and nearby.",
+          stringResource(R.string.scan_none_found),
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -130,7 +132,7 @@ fun ScanSheet(
       if (!scanning) {
         Spacer(Modifier.height(4.dp))
         OutlinedButton(onClick = onStartScan) {
-          Text(if (devices.isEmpty()) "Scan" else "Scan again")
+          Text(stringResource(if (devices.isEmpty()) R.string.scan_scan else R.string.scan_again))
         }
       }
     }
@@ -158,7 +160,7 @@ private fun DeviceRow(title: String, subtitle: String, onClick: () -> Unit) {
       Text(title, style = MaterialTheme.typography.titleMedium)
       Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-    Text("Connect", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+    Text(stringResource(R.string.scan_connect), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
   }
 }
 

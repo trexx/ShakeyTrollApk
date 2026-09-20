@@ -15,7 +15,7 @@
       android:icon="@mipmap/ic_launcher"
       android:theme="@style/Theme.Sleepytroll">
     <activity
-        android:name="com.example.bleat.ui.MainActivity"
+        android:name=".ui.MainActivity"
         android:exported="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
@@ -23,7 +23,7 @@
       </intent-filter>
     </activity>
     <service
-        android:name="com.example.bleat.ble.BleForegroundService"
+        android:name=".ble.BleForegroundService"
         android:exported="false"
         android:foregroundServiceType="connectedDevice" />
   </application>

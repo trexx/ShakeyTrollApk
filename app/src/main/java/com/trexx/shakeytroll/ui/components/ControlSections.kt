@@ -1,4 +1,4 @@
-package com.example.bleat.ui.components
+package com.trexx.shakeytroll.ui.components
 
 import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Column
@@ -29,12 +29,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.bleat.ble.DeviceInfo
-import com.example.bleat.ble.Telemetry
-import com.example.bleat.commands.CommandUiState
+import com.trexx.shakeytroll.R
+import com.trexx.shakeytroll.ble.DeviceInfo
+import com.trexx.shakeytroll.ble.Telemetry
+import com.trexx.shakeytroll.commands.CommandUiState
+import com.trexx.shakeytroll.commands.SleepytrollCommands
 import kotlin.math.roundToInt
 
 @Composable
@@ -51,14 +54,14 @@ fun ControlSections(
   onAction: (String) -> Unit,
 ) {
   byId["mode"]?.let { mode ->
-    SectionCard(mode.label) {
+    SectionCard(stringResource(mode.labelRes)) {
       SegmentedOptions(mode, enabled, onOption)
     }
     Spacer(Modifier.height(12.dp))
   }
 
   byId["sp"]?.let { sp ->
-    SectionCard(sp.label) {
+    SectionCard(stringResource(sp.labelRes)) {
       SegmentedOptions(sp, enabled, onOption)
     }
     Spacer(Modifier.height(12.dp))
@@ -67,31 +70,48 @@ fun ControlSections(
   val sound = byId["sh"]
   val movement = byId["au"]
   if (sound != null || movement != null) {
-    SectionCard("Sensitivity") {
+    SectionCard(stringResource(R.string.section_sensitivity)) {
       sound?.let {
-        LabeledSlider(it, enabled, name = "Sound", onSlider = onSlider)
+        LabeledSlider(it, enabled, name = stringResource(R.string.slider_sound), onSlider = onSlider)
       }
       if (sound != null && movement != null) Spacer(Modifier.height(10.dp))
       movement?.let {
-        LabeledSlider(it, enabled, name = "Movement", onSlider = onSlider)
+        LabeledSlider(it, enabled, name = stringResource(R.string.slider_movement), onSlider = onSlider)
       }
     }
     Spacer(Modifier.height(12.dp))
   }
 
   byId["st"]?.let { timer ->
-    SectionCard("Timer") {
+    SectionCard(stringResource(R.string.section_timer)) {
+      // Official-app rule: total motor time is capped at 180 min, so the timer can only be set to
+      // what is left of that budget (channel-3 motor minutes); the ViewModel shrinks the max.
+      val motor = deviceInfo?.motorMinutes
+      val budget = motor?.let { SleepytrollCommands.RUN_TIMER_CAP_MIN - it }
+      val exhausted = budget != null && budget < timer.min
       LabeledSlider(
         timer,
-        enabled,
-        name = "Run timer",
+        enabled && !exhausted,
+        name = stringResource(R.string.slider_run_timer),
         continuous = true,
-        valueLabel = { if (it == 0) "Off" else "$it min" },
+        valueLabel = { stringResource(R.string.minutes_value, it) },
         onSlider = onSlider,
       )
+      when {
+        exhausted -> Text(
+          stringResource(R.string.timer_budget_exhausted, motor ?: 0, SleepytrollCommands.RUN_TIMER_CAP_MIN),
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.error,
+        )
+        budget != null -> Text(
+          stringResource(R.string.timer_budget_left, budget),
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
       if (telemetry?.running == true && telemetry.timerSeconds > 0) {
         Text(
-          "Time left ${telemetry.timerText}",
+          stringResource(R.string.timer_time_left, telemetry.timerText),
           style = MaterialTheme.typography.labelMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -99,9 +119,9 @@ fun ControlSections(
       Spacer(Modifier.height(10.dp))
       Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-          Text("3-hour keep-alive", style = MaterialTheme.typography.bodyMedium)
+          Text(stringResource(R.string.keepalive_title), style = MaterialTheme.typography.bodyMedium)
           Text(
-            "Stop/start re-arm at 165 motor-minutes, only while rocking",
+            stringResource(R.string.keepalive_caption),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
@@ -116,15 +136,15 @@ fun ControlSections(
     Spacer(Modifier.height(12.dp))
   }
 
-  SectionCard("Device") {
-    val counters = buildList {
-      deviceInfo?.motorMinutes?.let { add("Motor $it min of 180") }
-      deviceInfo?.deviceTotalMin?.let { add("Total $it min") }
-      deviceInfo?.batteryCycles?.let { add("Battery cycles $it") }
-    }
+  SectionCard(stringResource(R.string.section_device)) {
+    val counters = listOfNotNull(
+      deviceInfo?.motorMinutes?.let { stringResource(R.string.device_motor_minutes, it, SleepytrollCommands.RUN_TIMER_CAP_MIN) },
+      deviceInfo?.deviceTotalMin?.let { stringResource(R.string.device_total_minutes, it) },
+      deviceInfo?.batteryCycles?.let { stringResource(R.string.device_battery_cycles, it) },
+    )
     if (counters.isEmpty()) {
       Text(
-        "Usage counters appear here once connected.",
+        stringResource(R.string.device_no_counters),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
@@ -143,7 +163,7 @@ fun ControlSections(
     }
     appVersion?.let {
       Spacer(Modifier.height(4.dp))
-      Text("App v$it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      Text(stringResource(R.string.device_app_version, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     byId["reset"]?.let { reset ->
       Spacer(Modifier.height(4.dp))
@@ -177,7 +197,7 @@ private fun SegmentedOptions(item: CommandUiState, enabled: Boolean, onOption: (
         shape = SegmentedButtonDefaults.itemShape(index = index, count = item.options.size),
         enabled = enabled,
         icon = {}, // the checkmark steals width the three tight labels need
-        label = { Text(label, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        label = { Text(stringResource(label), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
       )
     }
   }
@@ -193,7 +213,7 @@ private fun LabeledSlider(
   enabled: Boolean,
   name: String,
   continuous: Boolean = false,
-  valueLabel: (Int) -> String = { "$it${item.unit}" },
+  valueLabel: @Composable (Int) -> String = { "$it${item.unit}" },
   onSlider: (String, Int) -> Unit,
 ) {
   var value by remember(item.id) { mutableIntStateOf(item.intValue) }
@@ -229,7 +249,7 @@ private fun ResetButton(item: CommandUiState, enabled: Boolean, onAction: (Strin
     enabled = enabled,
     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
   ) {
-    Text(item.label)
+    Text(stringResource(item.labelRes))
   }
   if (confirming) {
     AlertDialog(
@@ -238,11 +258,11 @@ private fun ResetButton(item: CommandUiState, enabled: Boolean, onAction: (Strin
         TextButton(onClick = {
           confirming = false
           onAction(item.id)
-        }) { Text("Confirm") }
+        }) { Text(stringResource(R.string.dialog_confirm)) }
       },
-      dismissButton = { TextButton(onClick = { confirming = false }) { Text("Cancel") } },
-      title = { Text(item.label) },
-      text = { Text("Send ${item.label}?") },
+      dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.dialog_cancel)) } },
+      title = { Text(stringResource(item.labelRes)) },
+      text = { Text(stringResource(R.string.dialog_send_prompt, stringResource(item.labelRes))) },
     )
   }
 }

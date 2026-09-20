@@ -1,4 +1,134 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
   <string name="app_name">Sleepytroll</string>
+
+  <!-- Status header -->
+  <string name="status_title">Sleepytroll</string>
+  <!-- %1$s serial number, %2$s firmware suffix from status_version_suffix (may be empty) -->
+  <string name="status_serial">Serial %1$s%2$s</string>
+  <!-- %1$s firmware version -->
+  <string name="status_version_suffix">"  ·  v%1$s"</string>
+  <!-- %1$d battery percent -->
+  <string name="warning_low_battery">Battery low (%1$d%%) — charge the Sleepytroll soon</string>
+  <string name="conn_connected">Connected</string>
+  <string name="conn_connecting">Connecting…</string>
+  <string name="conn_reconnecting">Reconnecting…</string>
+  <string name="conn_connect">Connect</string>
+  <!-- %1$d a percentage -->
+  <string name="percent">%1$d%%</string>
+
+  <!-- Hero control (stateDescription for TalkBack, then the visible labels) -->
+  <string name="hero_desc_disconnected">Not connected</string>
+  <string name="hero_desc_connecting">Connecting</string>
+  <string name="hero_desc_awaiting">Waiting for status</string>
+  <!-- %1$d speed percent -->
+  <string name="hero_desc_stopped" tools:ignore="PluralsCandidate">Stopped, speed %1$d percent</string>
+  <string name="hero_desc_standby" tools:ignore="PluralsCandidate">Listening for the baby, speed %1$d percent</string>
+  <string name="hero_desc_running" tools:ignore="PluralsCandidate">Rocking at %1$d percent</string>
+  <string name="hero_tap_to_connect">Tap to connect</string>
+  <string name="hero_find_caption">Find your Sleepytroll</string>
+  <string name="hero_connecting">Connecting…</string>
+  <string name="hero_awaiting">Waiting for status…</string>
+  <string name="hero_tap_to_start">Tap to start</string>
+  <string name="hero_listening">Listening…</string>
+  <string name="hero_rocking">Rocking</string>
+
+  <!-- Home -->
+  <!-- %1$s the device's channel-4 reply text -->
+  <string name="ack_caption">Device replied: %1$s</string>
+  <string name="speed_label">Speed</string>
+
+  <!-- Scan sheet -->
+  <string name="scan_title">Find your Sleepytroll</string>
+  <string name="scan_permission_needed">Bluetooth permission is needed to find and control the Sleepytroll.</string>
+  <string name="scan_allow_bluetooth">Allow Bluetooth</string>
+  <string name="scan_connected_device">Connected device</string>
+  <string name="scan_connected">Connected</string>
+  <string name="scan_disconnect">Disconnect</string>
+  <!-- %1$s Bluetooth address -->
+  <string name="scan_last_connected">Last connected · %1$s</string>
+  <string name="scan_looking">Looking nearby…</string>
+  <string name="scan_default_name">Sleepytroll</string>
+  <string name="scan_none_found">No Sleepytroll found. Make sure it\'s switched on and nearby.</string>
+  <string name="scan_scan">Scan</string>
+  <string name="scan_again">Scan again</string>
+  <string name="scan_connect">Connect</string>
+  <string name="scan_error_registration">Bluetooth scan couldn\'t start. Try switching Bluetooth off and on.</string>
+  <string name="scan_error_too_frequent">Scanning too often. Wait a moment and try again.</string>
+  <!-- %1$d ScanCallback error code -->
+  <string name="scan_error_generic">Bluetooth scan failed (error %1$d).</string>
+  <string name="scan_error_no_bluetooth">This device has no Bluetooth.</string>
+  <string name="scan_error_no_scanner">Bluetooth scanner unavailable.</string>
+
+  <!-- Control sections -->
+  <string name="section_sensitivity">Sensitivity</string>
+  <string name="slider_sound">Sound</string>
+  <string name="slider_movement">Movement</string>
+  <string name="section_timer">Timer</string>
+  <string name="slider_run_timer">Run timer</string>
+  <!-- %1$d minutes -->
+  <string name="minutes_value">%1$d min</string>
+  <!-- %1$d motor minutes used, %2$d the 180-minute cap -->
+  <string name="timer_budget_exhausted">Motor budget used up (%1$d of %2$d min) — the device needs to rest</string>
+  <!-- %1$d minutes left -->
+  <string name="timer_budget_left">Up to %1$d min left before the 3-hour rest</string>
+  <!-- %1$s countdown as HH:MM:SS -->
+  <string name="timer_time_left">Time left %1$s</string>
+  <string name="keepalive_title">3-hour keep-alive</string>
+  <string name="keepalive_caption">Stop/start re-arm at 165 motor-minutes, only while rocking</string>
+  <string name="section_device">Device</string>
+  <!-- %1$d motor minutes, %2$d the 180-minute cap -->
+  <string name="device_motor_minutes">Motor %1$d min of %2$d</string>
+  <!-- %1$d minutes -->
+  <string name="device_total_minutes">Total %1$d min</string>
+  <!-- %1$d cycles -->
+  <string name="device_battery_cycles">Battery cycles %1$d</string>
+  <string name="device_no_counters">Usage counters appear here once connected.</string>
+  <!-- %1$s versionName -->
+  <string name="device_app_version">App v%1$s</string>
+  <string name="dialog_confirm">Confirm</string>
+  <string name="dialog_cancel">Cancel</string>
+  <!-- %1$s the action's label -->
+  <string name="dialog_send_prompt">Send %1$s?</string>
+
+  <!-- Command labels (SleepytrollCommands) -->
+  <string name="cmd_rocking">Rocking</string>
+  <string name="cmd_speed">Speed</string>
+  <string name="cmd_mode">Mode</string>
+  <string name="cmd_mode_continuous">Continuous</string>
+  <string name="cmd_mode_sensor">Sensor</string>
+  <string name="cmd_mode_baby_monitor">Baby monitor</string>
+  <string name="cmd_sleep_program">Sleep program</string>
+  <string name="cmd_sleep_short">Short</string>
+  <string name="cmd_sleep_medium">Medium</string>
+  <string name="cmd_sleep_long">Long</string>
+  <string name="cmd_sound_sensitivity">Sound sensitivity</string>
+  <string name="cmd_movement_sensitivity">Movement sensitivity</string>
+  <string name="cmd_run_timer">Run timer</string>
+  <string name="cmd_reset">Reset device</string>
+
+  <!-- Foreground-service notification -->
+  <string name="notif_channel_name">Connection</string>
+  <string name="notif_title">Sleepytroll</string>
+  <string name="notif_action_disconnect">Disconnect</string>
+  <string name="notif_connecting_initial">Connecting…</string>
+  <string name="notif_default_name">Sleepytroll</string>
+  <!-- %1$s device name -->
+  <string name="notif_connecting">Connecting to %1$s…</string>
+  <string name="notif_reconnecting">Reconnecting to %1$s…</string>
+  <string name="notif_connected">Connected to %1$s</string>
+  <!-- %1$s device name, %2$d speed percent -->
+  <string name="notif_connected_rocking">Connected to %1$s · Rocking %2$d%%</string>
+  <string name="notif_connected_listening">Connected to %1$s · Listening</string>
+  <string name="notif_connected_stopped">Connected to %1$s · Stopped</string>
+
+  <!-- Keep-alive status (shown under the switch) and device warnings -->
+  <!-- %1$s clock time, %2$d motor counter before, %3$d after -->
+  <string name="keepalive_verified">Re-arm verified %1$s · motor counter %2$d → %3$d min</string>
+  <!-- %1$s clock time, %2$s motor counter value or ? -->
+  <string name="keepalive_not_verified">Re-arm at %1$s did not reset the motor counter (still %2$s min). Keep-alive switched off: it may not work on this firmware.</string>
+  <!-- %1$s clock time -->
+  <string name="keepalive_rearmed_verifying">Re-armed %1$s, verifying…</string>
+  <string name="keepalive_rearmed_unverifiable">Re-armed %1$s (no motor counter to verify against)</string>
+  <string name="warning_motor_rest">Max rocking time (3 h) reached — device is resting</string>
 </resources>

@@ -1,4 +1,4 @@
-package com.example.bleat.ui.components
+package com.trexx.shakeytroll.ui.components
 
 import android.provider.Settings
 import androidx.compose.animation.core.EaseInOutSine
@@ -30,12 +30,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
-import com.example.bleat.ble.ConnState
-import com.example.bleat.ble.Telemetry
-import com.example.bleat.commands.CommandUiState
+import com.trexx.shakeytroll.R
+import com.trexx.shakeytroll.ble.ConnState
+import com.trexx.shakeytroll.ble.Telemetry
+import com.trexx.shakeytroll.commands.CommandUiState
 
 /** Visual state of the hero circle, derived from connection + telemetry + optimistic command state. */
 sealed interface HeroState {
@@ -108,12 +110,12 @@ fun HeroRockingControl(
   }
   val glowColor = scheme.primary
   val description = when (state) {
-    HeroState.Disconnected -> "Not connected"
-    HeroState.Connecting -> "Connecting"
-    HeroState.AwaitingStatus -> "Waiting for status"
-    is HeroState.Stopped -> "Stopped, speed ${state.speed} percent"
-    is HeroState.Standby -> "Listening for the baby, speed ${state.speed} percent"
-    is HeroState.Running -> "Rocking at ${state.speed} percent"
+    HeroState.Disconnected -> stringResource(R.string.hero_desc_disconnected)
+    HeroState.Connecting -> stringResource(R.string.hero_desc_connecting)
+    HeroState.AwaitingStatus -> stringResource(R.string.hero_desc_awaiting)
+    is HeroState.Stopped -> stringResource(R.string.hero_desc_stopped, state.speed)
+    is HeroState.Standby -> stringResource(R.string.hero_desc_standby, state.speed)
+    is HeroState.Running -> stringResource(R.string.hero_desc_running, state.speed)
   }
 
   Box(
@@ -160,12 +162,12 @@ fun HeroRockingControl(
     ) {
       Box(contentAlignment = Alignment.Center) {
         when (state) {
-          HeroState.Disconnected -> HeroLabel(moon = true, title = "Tap to connect", caption = "Find your Sleepytroll")
-          HeroState.Connecting -> HeroLabel(title = "Connecting…", caption = null)
-          HeroState.AwaitingStatus -> HeroLabel(title = "Waiting for status…", caption = null)
-          is HeroState.Stopped -> HeroSpeed(state.speed, "Tap to start", scheme.onSurfaceVariant)
-          is HeroState.Standby -> HeroSpeed(state.speed, "Listening…", scheme.secondary)
-          is HeroState.Running -> HeroSpeed(state.speed, "Rocking", scheme.primary, timerText)
+          HeroState.Disconnected -> HeroLabel(moon = true, title = stringResource(R.string.hero_tap_to_connect), caption = stringResource(R.string.hero_find_caption))
+          HeroState.Connecting -> HeroLabel(title = stringResource(R.string.hero_connecting), caption = null)
+          HeroState.AwaitingStatus -> HeroLabel(title = stringResource(R.string.hero_awaiting), caption = null)
+          is HeroState.Stopped -> HeroSpeed(state.speed, stringResource(R.string.hero_tap_to_start), scheme.onSurfaceVariant)
+          is HeroState.Standby -> HeroSpeed(state.speed, stringResource(R.string.hero_listening), scheme.secondary)
+          is HeroState.Running -> HeroSpeed(state.speed, stringResource(R.string.hero_rocking), scheme.primary, timerText)
         }
       }
     }
@@ -175,7 +177,7 @@ fun HeroRockingControl(
 @Composable
 private fun HeroSpeed(speed: Int, label: String, labelColor: Color, timerText: String? = null) {
   Column(horizontalAlignment = Alignment.CenterHorizontally) {
-    Text("$speed%", style = MaterialTheme.typography.displayLarge)
+    Text(stringResource(R.string.percent, speed), style = MaterialTheme.typography.displayLarge)
     Text(label, style = MaterialTheme.typography.labelLarge, color = labelColor)
     if (timerText != null) {
       Spacer(Modifier.height(4.dp))

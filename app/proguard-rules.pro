@@ -6,7 +6,7 @@
 # So no custom keep rules are currently required.
 #
 # If R8 ever strips something used only at runtime, add a targeted keep here, e.g.:
-#   -keep class com.example.bleat.ble.** { *; }
+#   -keep class com.trexx.shakeytroll.ble.** { *; }
 #
 # Keep source line numbers for readable stack traces from release crashes:
 -keepattributes SourceFile,LineNumberTable

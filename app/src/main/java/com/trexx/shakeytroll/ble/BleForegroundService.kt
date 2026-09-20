@@ -1,4 +1,4 @@
-package com.example.bleat.ble
+package com.trexx.shakeytroll.ble
 
 import android.annotation.SuppressLint
 import android.app.Notification
@@ -24,8 +24,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
-import com.example.bleat.R
-import com.example.bleat.ui.MainActivity
+import com.trexx.shakeytroll.R
+import com.trexx.shakeytroll.ui.MainActivity
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -54,7 +54,7 @@ class BleForegroundService : Service() {
   companion object {
     private const val TAG = "BleService"
     /** Notification action: disconnect and let the service stop. */
-    const val ACTION_DISCONNECT = "com.example.bleat.action.DISCONNECT"
+    const val ACTION_DISCONNECT = "com.trexx.shakeytroll.action.DISCONNECT"
     val WRITE_UUID: UUID = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3")
     val NOTIFY_UUID: UUID = UUID.fromString("49535343-1e4d-4bd9-ba61-23c647249616")
     val CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
@@ -160,7 +160,7 @@ class BleForegroundService : Service() {
   private fun createNotificationChannel() {
     val nm = getSystemService(NotificationManager::class.java)
     nm.createNotificationChannel(
-      NotificationChannel(CHANNEL_ID, "BLE Service", NotificationManager.IMPORTANCE_LOW)
+      NotificationChannel(CHANNEL_ID, getString(R.string.notif_channel_name), NotificationManager.IMPORTANCE_LOW)
     )
   }
 
@@ -173,11 +173,11 @@ class BleForegroundService : Service() {
       PendingIntent.FLAG_IMMUTABLE
     )
     return NotificationCompat.Builder(this, CHANNEL_ID)
-      .setContentTitle("Sleepytroll")
+      .setContentTitle(getString(R.string.notif_title))
       .setContentText(content)
       .setSmallIcon(R.drawable.ic_stat_moon)
       .setContentIntent(open)
-      .addAction(0, "Disconnect", disconnect)
+      .addAction(0, getString(R.string.notif_action_disconnect), disconnect)
       .setOngoing(true)
       .setSilent(true)
       .build()
@@ -187,18 +187,18 @@ class BleForegroundService : Service() {
 
   /** Reflect connection + rocking state on the notification; only re-posts when the text changes. */
   private fun updateNotification() {
-    val name = lastDevice?.let { d -> runCatching { d.name }.getOrNull() ?: d.address } ?: "Sleepytroll"
+    val name = lastDevice?.let { d -> runCatching { d.name }.getOrNull() ?: d.address } ?: getString(R.string.notif_default_name)
     val text = when (_connectionState.value) {
       ConnState.DISCONNECTED -> return // not in the foreground; nothing to show
-      ConnState.CONNECTING -> "Connecting to $name…"
-      ConnState.RECONNECTING -> "Reconnecting to $name…"
+      ConnState.CONNECTING -> getString(R.string.notif_connecting, name)
+      ConnState.RECONNECTING -> getString(R.string.notif_reconnecting, name)
       ConnState.CONNECTED -> {
         val t = _telemetry.value
         when {
-          t == null -> "Connected to $name"
-          t.running -> "Connected to $name · Rocking ${t.speed}%"
-          t.standby -> "Connected to $name · Listening"
-          else -> "Connected to $name · Stopped"
+          t == null -> getString(R.string.notif_connected, name)
+          t.running -> getString(R.string.notif_connected_rocking, name, t.speed)
+          t.standby -> getString(R.string.notif_connected_listening, name)
+          else -> getString(R.string.notif_connected_stopped, name)
         }
       }
     }
@@ -234,7 +234,7 @@ class BleForegroundService : Service() {
     // Become a started foreground service so the link survives the Activity unbinding.
     ContextCompat.startForegroundService(this, Intent(this, BleForegroundService::class.java))
     ServiceCompat.startForeground(
-      this, NOTIF_ID, buildNotification("Connecting…"), ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+      this, NOTIF_ID, buildNotification(getString(R.string.notif_connecting_initial)), ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
     )
     setState(ConnState.CONNECTING)
     logEvent("Connecting ${device.address}")
@@ -377,13 +377,12 @@ class BleForegroundService : Service() {
     val before = motorMinutesAtRearm
     if (rearm != null && before != null) {
       if (motor != null && motor < before) {
-        _keepAliveStatus.value = "Re-arm verified ${clock()} · motor counter $before → $motor min"
+        _keepAliveStatus.value = getString(R.string.keepalive_verified, clock(), before, motor)
         logEvent("Keep-alive: re-arm verified, motor counter $before → $motor")
         motorMinutesAtRearm = null
       } else if (now - rearm > REARM_VERIFY_TIMEOUT_MS) {
         _keepAliveStatus.value =
-          "Re-arm at ${clock(rearm)} did not reset the motor counter (still ${motor ?: "?"} min). " +
-            "Keep-alive switched off: it may not work on this firmware."
+          getString(R.string.keepalive_not_verified, clock(rearm), motor?.toString() ?: "?")
         logEvent("Keep-alive: re-arm NOT verified, motor counter still $motor; disabling")
         motorMinutesAtRearm = null
         _keepAliveEnabled.value = false
@@ -413,8 +412,8 @@ class BleForegroundService : Service() {
     runStartedAt = now
     motorMinutesAtRearm = motor?.takeIf { it > 0 } // a zero counter can't be seen to drop
     _keepAliveStatus.value =
-      if (motorMinutesAtRearm != null) "Re-armed ${clock()}, verifying…"
-      else "Re-armed ${clock()} (no motor counter to verify against)"
+      if (motorMinutesAtRearm != null) getString(R.string.keepalive_rearmed_verifying, clock())
+      else getString(R.string.keepalive_rearmed_unverifiable, clock())
     _events.tryEmit(BleEvent.Rearm)
   }
 
@@ -560,7 +559,7 @@ class BleForegroundService : Service() {
         is Channel4.Ack -> _events.tryEmit(BleEvent.CommandAck(c.text))
         Channel4.WillDisconnect -> logEvent("Device signalled it will disconnect")
         Channel4.MotorWarning -> {
-          _motorWarning.value = "Max rocking time (3 h) reached — device is resting"
+          _motorWarning.value = getString(R.string.warning_motor_rest)
           logEvent("Motor warning: 3-hour limit reached")
         }
         is Channel4.Other -> _events.tryEmit(BleEvent.CommandAck(c.text))
