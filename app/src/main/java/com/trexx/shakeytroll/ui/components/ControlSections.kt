@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.trexx.shakeytroll.ble.DeviceInfo
 import com.trexx.shakeytroll.ble.Telemetry
 import com.trexx.shakeytroll.commands.CommandUiState
+import com.trexx.shakeytroll.commands.SleepytrollCommands
 import kotlin.math.roundToInt
 
 @Composable
@@ -81,14 +82,31 @@ fun ControlSections(
 
   byId["st"]?.let { timer ->
     SectionCard("Timer") {
+      // Official-app rule: total motor time is capped at 180 min, so the timer can only be set to
+      // what is left of that budget (channel-3 motor minutes); the ViewModel shrinks the max.
+      val motor = deviceInfo?.motorMinutes
+      val budget = motor?.let { SleepytrollCommands.RUN_TIMER_CAP_MIN - it }
+      val exhausted = budget != null && budget < timer.min
       LabeledSlider(
         timer,
-        enabled,
+        enabled && !exhausted,
         name = "Run timer",
         continuous = true,
-        valueLabel = { if (it == 0) "Off" else "$it min" },
+        valueLabel = { "$it min" },
         onSlider = onSlider,
       )
+      when {
+        exhausted -> Text(
+          "Motor budget used up ($motor of ${SleepytrollCommands.RUN_TIMER_CAP_MIN} min) — the device needs to rest",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.error,
+        )
+        budget != null -> Text(
+          "Up to $budget min left before the 3-hour rest",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
       if (telemetry?.running == true && telemetry.timerSeconds > 0) {
         Text(
           "Time left ${telemetry.timerText}",

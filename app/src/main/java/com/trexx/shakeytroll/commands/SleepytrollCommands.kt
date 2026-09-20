@@ -13,6 +13,9 @@ object SleepytrollCommands {
   const val RUN_TIMER = "st"
   const val RESET = "reset"
 
+  /** Firmware caps total motor time at 180 min (PROTOCOL §4a); the run timer can't exceed what's left. */
+  const val RUN_TIMER_CAP_MIN = 180
+
   val models: List<CommandModel> = listOf(
     CommandModel.Toggle(
       id = ROCKING, label = "Rocking",
@@ -49,8 +52,9 @@ object SleepytrollCommands {
       min = 0, max = 4, step = 1, default = 2, template = "AT+AU=%02x;"
     ),
     CommandModel.Slider(
+      // Official-app range: [10, 180 − motorTime]; the live max is set by syncRunTimerBudget.
       id = RUN_TIMER, label = "Run timer",
-      min = 0, max = 180, step = 5, default = 30,
+      min = 10, max = RUN_TIMER_CAP_MIN, step = 5, default = 30,
       template = SleepytrollProtocol.RUN_TIMER_PREFIX + "%02x;", unit = " min"
     ),
     CommandModel.Action(

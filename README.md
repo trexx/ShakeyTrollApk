@@ -57,8 +57,9 @@ permission, so it can't reach any of the above even if it wanted to.
   if it's off.
 - Controls: **start/stop** (`AT+BH`) on a big tap target, **speed** 0–100 % (`AT+FR`), **mode** —
   continuous / sensor / baby monitor (`AT+MODE`), **sleep program** S/M/L (`AT+SP`), **sound** and
-  **movement** sensitivity 0–4 (`AT+SH` / `AT+AU`), **run timer** 0–180 min in 5-minute steps
-  (`AT+ST`), and a confirm-guarded **reset** (`AT+RESET`).
+  **movement** sensitivity 0–4 (`AT+SH` / `AT+AU`), **run timer** 10–180 min in 5-minute steps,
+  capped at 180 minus the device's motor minutes as the official app does (`AT+ST`), and a
+  confirm-guarded **reset** (`AT+RESET`).
 - Live status from the device's channel-tagged telemetry: battery, running/standby, speed,
   sensitivities, time left on the run timer, serial + firmware version, and usage counters (motor
   minutes of 180, device total, battery cycles). Controls follow what the device reports, with a

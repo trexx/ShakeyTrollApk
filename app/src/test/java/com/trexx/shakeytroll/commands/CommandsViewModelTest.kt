@@ -15,8 +15,30 @@ class CommandsViewModelTest {
     vm.onSlider(SleepytrollCommands.SPEED, 50)
     vm.onSlider(SleepytrollCommands.RUN_TIMER, 999)
     vm.onSlider(SleepytrollCommands.SOUND, -3)
-    assertEquals(listOf("AT+FR=32;", "AT+ST=b4;", "AT+SH=00;"), sent)
-    assertEquals(180, state(SleepytrollCommands.RUN_TIMER).intValue)
+    vm.onSlider(SleepytrollCommands.RUN_TIMER, 3) // below the official 10-min minimum
+    assertEquals(listOf("AT+FR=32;", "AT+ST=b4;", "AT+SH=00;", "AT+ST=0a;"), sent)
+    assertEquals(10, state(SleepytrollCommands.RUN_TIMER).intValue)
+  }
+
+  @Test fun `run timer max follows the motor budget`() {
+    val st = SleepytrollCommands.RUN_TIMER
+    vm.syncRunTimerBudget(12)   // 168 left → rounded down to the 5-min step
+    assertEquals(165, state(st).max)
+    assertEquals(30, state(st).intValue) // the default is still inside the range
+    vm.syncRunTimerBudget(170)  // 10 left → the floor of the range
+    assertEquals(10, state(st).max)
+    assertEquals(10, state(st).intValue)
+    vm.syncRunTimerBudget(179)  // less than the minimum still clamps to it, never below
+    assertEquals(10, state(st).max)
+    vm.syncRunTimerBudget(null) // no channel-3 frame yet → full range
+    assertEquals(180, state(st).max)
+  }
+
+  @Test fun `run timer never sends more than the remaining budget`() {
+    vm.syncRunTimerBudget(120) // 60 left
+    vm.onSlider(SleepytrollCommands.RUN_TIMER, 120)
+    assertEquals(listOf("AT+ST=3c;"), sent)
+    assertEquals(60, state(SleepytrollCommands.RUN_TIMER).intValue)
   }
 
   @Test fun `toggle and options send their exact wire strings`() {

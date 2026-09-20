@@ -91,7 +91,9 @@ class CommandsViewModel : ViewModel() {
 
   fun onSlider(id: String, value: Int) {
     val m = models.filterIsInstance<CommandModel.Slider>().firstOrNull { it.id == id } ?: return
-    val clamped = value.coerceIn(m.min, m.max)
+    // Clamp to the live range, not the model's: the run timer's max shrinks with the motor budget.
+    val s = _uiState.value.firstOrNull { it.id == id } ?: return
+    val clamped = value.coerceIn(s.min, s.max)
     // Locale.ROOT: the wire format must never pick up localized digits.
     send(String.format(Locale.ROOT, m.template, clamped), id) { it.copy(intValue = clamped) }
   }
@@ -105,6 +107,23 @@ class CommandsViewModel : ViewModel() {
   fun onAction(id: String) {
     val m = models.filterIsInstance<CommandModel.Action>().firstOrNull { it.id == id } ?: return
     send(m.command, id) { it }
+  }
+
+  /**
+   * The device caps total motor time at 180 min and the official app clamps the run timer to
+   * [10, 180 − motorTime]. Shrink the run-timer slider's max to what is left of that budget
+   * (channel-3 motor minutes), rounded down to the step and never below the slider's min; null
+   * (no channel-3 frame yet) restores the full 180. This changes the range, not the user's value,
+   * so it ignores the suppression window.
+   */
+  fun syncRunTimerBudget(motorMinutes: Int?) {
+    val cap = SleepytrollCommands.RUN_TIMER_CAP_MIN
+    _uiState.value = _uiState.value.map { s ->
+      if (s.id != SleepytrollCommands.RUN_TIMER) return@map s
+      val budget = if (motorMinutes == null) cap else cap - motorMinutes
+      val max = (budget / s.step * s.step).coerceIn(s.min, cap)
+      s.copy(max = max, intValue = s.intValue.coerceIn(s.min, max))
+    }
   }
 
   /** Sync the Mode dropdown from channel-3 (babyRockerType 1/2/3 → option index 0/1/2). */

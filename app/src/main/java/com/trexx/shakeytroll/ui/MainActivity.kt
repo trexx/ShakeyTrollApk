@@ -165,6 +165,7 @@ class MainActivity : ComponentActivity() {
           svc.deviceInfo.collect { di ->
             deviceInfo = di
             di?.mode?.let { viewModel.syncMode(it) }
+            viewModel.syncRunTimerBudget(di?.motorMinutes)
           }
         }
         launch { svc.motorWarning.collect { motorWarning = it } }
@@ -205,6 +206,7 @@ class MainActivity : ComponentActivity() {
           )
           viewModel.syncFromTelemetry(t)
           viewModel.syncMode(2)
+          viewModel.syncRunTimerBudget(12)
         }
       }
 
