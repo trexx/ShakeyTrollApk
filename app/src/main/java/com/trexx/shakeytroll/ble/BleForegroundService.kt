@@ -1,4 +1,4 @@
-package com.example.bleat.ble
+package com.trexx.shakeytroll.ble
 
 import android.annotation.SuppressLint
 import android.app.Notification
@@ -24,8 +24,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
-import com.example.bleat.R
-import com.example.bleat.ui.MainActivity
+import com.trexx.shakeytroll.R
+import com.trexx.shakeytroll.ui.MainActivity
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -54,7 +54,7 @@ class BleForegroundService : Service() {
   companion object {
     private const val TAG = "BleService"
     /** Notification action: disconnect and let the service stop. */
-    const val ACTION_DISCONNECT = "com.example.bleat.action.DISCONNECT"
+    const val ACTION_DISCONNECT = "com.trexx.shakeytroll.action.DISCONNECT"
     val WRITE_UUID: UUID = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3")
     val NOTIFY_UUID: UUID = UUID.fromString("49535343-1e4d-4bd9-ba61-23c647249616")
     val CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")

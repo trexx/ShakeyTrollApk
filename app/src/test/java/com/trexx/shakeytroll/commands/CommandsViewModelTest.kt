@@ -1,6 +1,6 @@
-package com.example.bleat.commands
+package com.trexx.shakeytroll.commands
 
-import com.example.bleat.ble.Telemetry
+import com.trexx.shakeytroll.ble.Telemetry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

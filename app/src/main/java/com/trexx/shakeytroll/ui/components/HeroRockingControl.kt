@@ -1,4 +1,4 @@
-package com.example.bleat.ui.components
+package com.trexx.shakeytroll.ui.components
 
 import android.provider.Settings
 import androidx.compose.animation.core.EaseInOutSine
@@ -33,9 +33,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
-import com.example.bleat.ble.ConnState
-import com.example.bleat.ble.Telemetry
-import com.example.bleat.commands.CommandUiState
+import com.trexx.shakeytroll.ble.ConnState
+import com.trexx.shakeytroll.ble.Telemetry
+import com.trexx.shakeytroll.commands.CommandUiState
 
 /** Visual state of the hero circle, derived from connection + telemetry + optimistic command state. */
 sealed interface HeroState {

@@ -1,4 +1,4 @@
-package com.example.bleat.ui.theme
+package com.trexx.shakeytroll.ui.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes

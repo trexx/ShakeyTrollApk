@@ -1,4 +1,4 @@
-package com.example.bleat.ui.components
+package com.trexx.shakeytroll.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -23,9 +23,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
-import com.example.bleat.ble.ConnState
-import com.example.bleat.ble.DeviceInfo
-import com.example.bleat.ble.Telemetry
+import com.trexx.shakeytroll.ble.ConnState
+import com.trexx.shakeytroll.ble.DeviceInfo
+import com.trexx.shakeytroll.ble.Telemetry
 
 @Composable
 fun StatusHeader(

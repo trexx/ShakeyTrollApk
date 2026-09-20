@@ -1,4 +1,4 @@
-package com.example.bleat.ui
+package com.trexx.shakeytroll.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -32,13 +32,13 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.bleat.ble.BleEvent
-import com.example.bleat.ble.BleForegroundService
-import com.example.bleat.ble.ConnState
-import com.example.bleat.ble.DeviceInfo
-import com.example.bleat.ble.Telemetry
-import com.example.bleat.commands.CommandsViewModel
-import com.example.bleat.ui.theme.SleepytrollTheme
+import com.trexx.shakeytroll.ble.BleEvent
+import com.trexx.shakeytroll.ble.BleForegroundService
+import com.trexx.shakeytroll.ble.ConnState
+import com.trexx.shakeytroll.ble.DeviceInfo
+import com.trexx.shakeytroll.ble.Telemetry
+import com.trexx.shakeytroll.commands.CommandsViewModel
+import com.trexx.shakeytroll.ui.theme.SleepytrollTheme
 import kotlinx.coroutines.launch
 
 // Every BLE call below is reached only after hasBluetoothPermissions() is true.
@@ -132,11 +132,11 @@ class MainActivity : ComponentActivity() {
     }
 
     // Debug-only showcase of the connected UI on BLE-less emulators:
-    //   adb shell am start -n com.example.bleat/.ui.MainActivity --ez demo true
+    //   adb shell am start -n com.trexx.shakeytroll/.ui.MainActivity --ez demo true
     val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
     val demo = debuggable && intent.getBooleanExtra("demo", false)
     // Debug-only: shrink the keep-alive thresholds so a re-arm can be watched in minutes:
-    //   adb shell am start -n com.example.bleat/.ui.MainActivity --ei rearm_after_min 2
+    //   adb shell am start -n com.trexx.shakeytroll/.ui.MainActivity --ei rearm_after_min 2
     val rearmTestMin = intent.getIntExtra("rearm_after_min", 0).takeIf { debuggable && it > 0 }
 
     setContent {

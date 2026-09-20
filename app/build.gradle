@@ -24,10 +24,10 @@ def semverCode(String v) {
 }
 
 android {
-    namespace = "com.example.bleat"
+    namespace = "com.trexx.shakeytroll"
     compileSdk = 37
     defaultConfig {
-        applicationId = "com.example.bleat"
+        applicationId = "com.trexx.shakeytroll"
         minSdk = 36
         targetSdk = 36
         versionName = releaseVersion ?: "1.0.0-dev"

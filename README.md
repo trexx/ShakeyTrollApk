@@ -144,7 +144,7 @@ Debug builds accept a demo flag that fills the UI with fake telemetry — handy 
 connected screen on an emulator with no BLE hardware:
 
 ```bash
-adb shell am start -n com.example.bleat/.ui.MainActivity --ez demo true
+adb shell am start -n com.trexx.shakeytroll/.ui.MainActivity --ez demo true
 ```
 
 Debug builds also accept `--ei rearm_after_min N`, which lowers both keep-alive thresholds to
@@ -152,7 +152,7 @@ Debug builds also accept `--ei rearm_after_min N`, which lowers both keep-alive 
 without waiting 2 h 45 m:
 
 ```bash
-adb shell am start -n com.example.bleat/.ui.MainActivity --ei rearm_after_min 2
+adb shell am start -n com.trexx.shakeytroll/.ui.MainActivity --ei rearm_after_min 2
 ```
 
 ## Releases (GitHub Actions)
@@ -202,7 +202,9 @@ the keystore and signs with it; without them, it uses the debug key.
    `sleepytroll-connect-release-apk` artifact on the **Build Release APK** Actions run (or build it
    yourself, see above).
 2. On the phone (**Android 16+**), allow installs from your browser/file manager, then open the APK.
-   It installs as **Sleepytroll**.
+   It installs as **Sleepytroll**. Builds up to v1.0.0 used the package `com.example.bleat`;
+   uninstall that one first, because the current package (`com.trexx.shakeytroll`) installs
+   alongside it rather than updating it.
 3. Grant the **Nearby devices** permission (notifications are optional: they let the connection
    status and its Disconnect action show in the shade), tap the connection chip to scan, pick your
    `Sleepytroll_…` device, and control it.
@@ -210,7 +212,7 @@ the keystore and signs with it; without them, it uses the debug key.
 ## Project layout
 
 ```
-app/src/main/java/com/example/bleat/
+app/src/main/java/com.trexx.shakeytroll/
   ble/BleForegroundService.kt   – GATT client, AT commands, telemetry parsing, keep-alive
   commands/CommandModel.kt      – control definitions (toggle / slider / options / action)
   commands/CommandsViewModel.kt – command building + two-way state sync

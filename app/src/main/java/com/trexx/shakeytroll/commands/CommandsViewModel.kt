@@ -1,7 +1,7 @@
-package com.example.bleat.commands
+package com.trexx.shakeytroll.commands
 
 import androidx.lifecycle.ViewModel
-import com.example.bleat.ble.Telemetry
+import com.trexx.shakeytroll.ble.Telemetry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

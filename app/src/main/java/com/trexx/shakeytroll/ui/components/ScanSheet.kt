@@ -1,4 +1,4 @@
-package com.example.bleat.ui.components
+package com.trexx.shakeytroll.ui.components
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
@@ -25,7 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.bleat.ble.ConnState
+import com.trexx.shakeytroll.ble.ConnState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -1,4 +1,4 @@
-package com.example.bleat.ui.theme
+package com.trexx.shakeytroll.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

@@ -1,4 +1,4 @@
-package com.example.bleat.ui.components
+package com.trexx.shakeytroll.ui.components
 
 import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Column
@@ -32,9 +32,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.bleat.ble.DeviceInfo
-import com.example.bleat.ble.Telemetry
-import com.example.bleat.commands.CommandUiState
+import com.trexx.shakeytroll.ble.DeviceInfo
+import com.trexx.shakeytroll.ble.Telemetry
+import com.trexx.shakeytroll.commands.CommandUiState
 import kotlin.math.roundToInt
 
 @Composable

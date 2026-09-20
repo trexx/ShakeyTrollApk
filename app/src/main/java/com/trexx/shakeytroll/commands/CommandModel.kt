@@ -1,4 +1,4 @@
-package com.example.bleat.commands
+package com.trexx.shakeytroll.commands
 
 /**
  * A Sleepytroll control and how it maps to an AT command. Each model owns its exact wire

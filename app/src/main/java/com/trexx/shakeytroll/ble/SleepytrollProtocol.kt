@@ -1,4 +1,4 @@
-package com.example.bleat.ble
+package com.trexx.shakeytroll.ble
 
 import java.util.Locale
 

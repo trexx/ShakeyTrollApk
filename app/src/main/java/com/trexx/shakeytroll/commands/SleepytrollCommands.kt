@@ -1,6 +1,6 @@
-package com.example.bleat.commands
+package com.trexx.shakeytroll.commands
 
-import com.example.bleat.ble.SleepytrollProtocol
+import com.trexx.shakeytroll.ble.SleepytrollProtocol
 
 /** The Sleepytroll control set and the exact AT command each one sends. */
 object SleepytrollCommands {

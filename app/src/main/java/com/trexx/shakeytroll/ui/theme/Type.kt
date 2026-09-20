@@ -1,11 +1,11 @@
-package com.example.bleat.ui.theme
+package com.trexx.shakeytroll.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.example.bleat.R
+import com.trexx.shakeytroll.R
 
 // Bundled static instances (license: assets/fonts/OFL-Nunito.txt) so the app looks the same
 // offline and on first run — no downloadable-fonts dependency on Play Services.
