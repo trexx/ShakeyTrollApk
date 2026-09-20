@@ -1,5 +1,6 @@
 package com.example.bleat.ui.components
 
+import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,6 +44,7 @@ fun ControlSections(
   deviceInfo: DeviceInfo?,
   enabled: Boolean,
   keepAlive: Boolean,
+  keepAliveStatus: String?,
   onKeepAlive: (Boolean) -> Unit,
   onSlider: (String, Int) -> Unit,
   onOption: (String, Int) -> Unit,
@@ -98,12 +101,16 @@ fun ControlSections(
         Column(Modifier.weight(1f)) {
           Text("3-hour keep-alive", style = MaterialTheme.typography.bodyMedium)
           Text(
-            "Re-arms the motor's 3-hour limit while rocking",
+            "Stop/start re-arm at 165 motor-minutes, only while rocking",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
         Switch(checked = keepAlive, onCheckedChange = onKeepAlive, enabled = enabled)
+      }
+      keepAliveStatus?.let {
+        Spacer(Modifier.height(4.dp))
+        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
       }
     }
     Spacer(Modifier.height(12.dp))
@@ -127,6 +134,16 @@ fun ControlSections(
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
+    }
+    val context = LocalContext.current
+    val appVersion = remember {
+      runCatching {
+        context.packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0)).versionName
+      }.getOrNull()
+    }
+    appVersion?.let {
+      Spacer(Modifier.height(4.dp))
+      Text("App v$it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     byId["reset"]?.let { reset ->
       Spacer(Modifier.height(4.dp))

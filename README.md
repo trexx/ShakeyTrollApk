@@ -16,7 +16,8 @@ sensor sensitivities, run timer, serial/version, usage counters).
 * UI Colour theme was bright white colours not ideal at night when connecting to it.
 * Wanted a way to work around some of the runtime limits imposed in the firmware.
 * Official app talks to external servers over plaintext HTTP (see below); this one holds no
-  `INTERNET` permission at all.
+  `INTERNET` permission at all, and no location permission either (`BLUETOOTH_SCAN` is declared
+  `neverForLocation`).
 
 ## What the official app talks to
 
@@ -48,8 +49,12 @@ permission, so it can't reach any of the above even if it wanted to.
 ## Features
 
 - Scan for `Sleepytroll_…` devices in a bottom sheet, connect, and auto-reconnect (3 attempts, 3 s
-  apart) to the ISSC/Microchip transparent-UART GATT service. The client runs in a
-  `connectedDevice` foreground service, so it keeps the link while the app is backgrounded.
+  apart) to the ISSC/Microchip transparent-UART GATT service. While a device is connected the
+  client runs as a `connectedDevice` foreground service, so it keeps the link while the app is
+  backgrounded; its notification shows the device and rocking state and has a **Disconnect**
+  action, and the service steps back down (notification gone) once disconnected. The last device
+  is remembered for one-tap reconnect without a scan, and the sheet offers to switch Bluetooth on
+  if it's off.
 - Controls: **start/stop** (`AT+BH`) on a big tap target, **speed** 0–100 % (`AT+FR`), **mode** —
   continuous / sensor / baby monitor (`AT+MODE`), **sleep program** S/M/L (`AT+SP`), **sound** and
   **movement** sensitivity 0–4 (`AT+SH` / `AT+AU`), **run timer** 0–180 min in 5-minute steps
@@ -60,9 +65,13 @@ permission, so it can't reach any of the above even if it wanted to.
   1.5 s window after you touch one so a stale status frame can't yank it back.
 - Warning banners for **low battery** (<6 %) and the device's **3-hour "needs to rest"** notice;
   standby is shown on the main control itself. The theme follows the system light/dark setting.
-- Optional **keep-alive** switch: every 2 h 45 m it re-sends the last run-timer command and
-  `AT+BH=01;` to re-arm before the firmware's 3-hour runtime cap (continuous/manual mode only —
-  see the protocol notes).
+- Optional **keep-alive** switch: while the device reports it is rocking, the app re-arms the
+  firmware's 3-hour runtime cap shortly before it hits — at 165 motor-minutes on the channel-3
+  counter, or after 2 h 45 m of running if that counter is missing — by sending stop → start → the
+  last run-timer command, then confirms on the next status frames that the motor counter dropped
+  and says so under the switch. It never starts a motor the device doesn't already report as
+  running, a manual stop cancels any pending re-arm, and if the counter doesn't reset it switches
+  itself off (continuous/manual mode only — see the protocol notes).
 
 ## How it works (protocol in brief)
 
@@ -89,18 +98,18 @@ reverse-engineering docs under [`docs/`](docs/):
 
 ## Building
 
-**Toolchain** (all current as of this writing):
+**Toolchain**:
 
 | | Version |
 |---|---|
 | Android compile/target/**min** SDK | compileSdk = 37; minSdk/targetSdk = 36 (Android 16) |
-| Android Gradle Plugin | 9.3.1 |
-| Gradle | 9.6.1 (via the committed wrapper) |
-| Kotlin / Compose compiler plugin | 2.4.10 (Kotlin ships with AGP 9 — no separate Kotlin plugin) |
+| Android Gradle Plugin | see `build.gradle` (Renovate keeps it current) |
+| Gradle | see `gradle/wrapper/gradle-wrapper.properties` (committed wrapper) |
+| Kotlin / Compose compiler plugin | see `build.gradle` (Kotlin ships with AGP 9 — no separate Kotlin plugin) |
 | Java bytecode target | **25** (via `jvmToolchain(25)`) |
 
 You need the **Android SDK**. The platform for compileSdk 37 is packaged as `platforms;android-37.0`,
-and AGP 9.3.1 builds with **build-tools 36.0.0** (its own default, not the newest published). With
+and AGP builds with **build-tools 36.0.0** (its own default, not the newest published). With
 the SDK licences accepted, AGP fetches whatever is missing during the build; to install them
 up front instead:
 
@@ -119,7 +128,11 @@ echo "sdk.dir=$HOME/Android/Sdk" > local.properties
 
 ./gradlew :app:assembleDebug     # debug APK  -> app/build/outputs/apk/debug/
 ./gradlew :app:assembleRelease   # release APK -> app/build/outputs/apk/release/
+./gradlew :app:lintDebug :app:testDebugUnitTest   # what CI gates on: lint + unit tests
 ```
+
+The protocol decoding (`ble/SleepytrollProtocol.kt`) and command encoding (`commands/`) are pure
+Kotlin with JUnit tests under `app/src/test/`, fed with the real frames from the protocol notes.
 
 The release build runs R8 with code **and** resource shrinking (~2 MB, versus ~48 MB for the
 unminified debug APK), so re-verify the BLE flow on-device after changing keep rules.
@@ -134,16 +147,29 @@ connected screen on an emulator with no BLE hardware:
 adb shell am start -n com.example.bleat/.ui.MainActivity --ez demo true
 ```
 
+Debug builds also accept `--ei rearm_after_min N`, which lowers both keep-alive thresholds to
+`N` minutes so the stop → start → timer re-arm and its verification can be watched on hardware
+without waiting 2 h 45 m:
+
+```bash
+adb shell am start -n com.example.bleat/.ui.MainActivity --ei rearm_after_min 2
+```
+
 ## Releases (GitHub Actions)
 
 Two workflows in `.github/workflows/`:
 
-- **`ci.yml`** — builds the debug APK on pushes to `main`, on pull requests, and on demand.
+- **`ci.yml`** — runs lint and the unit tests and builds the debug APK on pushes to `main`, on
+  pull requests, and on demand. Lint errors fail the build and the HTML report is uploaded.
 - **`release.yml`** — builds a **release APK** and uploads it as the
-  `sleepytroll-connect-release-apk` workflow artifact. Trigger it either by pushing a version tag
-  (`git tag v1.0 && git push --tags`) or from the Actions tab ("Run workflow"). Tag builds also
-  attach the APK to the matching GitHub Release, creating it with generated notes if it doesn't
-  exist yet; a re-run replaces the asset.
+  `sleepytroll-connect-release-apk` workflow artifact, plus the R8 `mapping.txt` as
+  `sleepytroll-connect-release-mapping` (keep it to read obfuscated crash traces). Trigger it
+  either by pushing a version tag (`git tag v1.0.1 && git push --tags`) or from the Actions tab
+  ("Run workflow"). Tag builds take their version from the tag — `v1.2.3` becomes `versionName`
+  `1.2.3` and `versionCode` `10203` — and also attach the APK and mapping to the matching GitHub
+  Release, creating it with generated notes if it doesn't exist yet; a re-run replaces the assets.
+  Manual runs and local builds use the `1.0.0-dev` fallback with `versionCode` 1, so always
+  install tag builds over each other, not over a dev build.
 
 ### Signing
 
@@ -177,7 +203,8 @@ the keystore and signs with it; without them, it uses the debug key.
    yourself, see above).
 2. On the phone (**Android 16+**), allow installs from your browser/file manager, then open the APK.
    It installs as **Sleepytroll**.
-3. Grant **Nearby devices / Location** permissions, tap the connection chip to scan, pick your
+3. Grant the **Nearby devices** permission (notifications are optional: they let the connection
+   status and its Disconnect action show in the shade), tap the connection chip to scan, pick your
    `Sleepytroll_…` device, and control it.
 
 ## Project layout
@@ -200,3 +227,8 @@ The device enforces a **3-hour runtime cap** and **sensor-mode duration limits**
 This app surfaces them but does not defeat them; the keep-alive only re-arms the runtime timer in
 continuous/manual mode. There is **no OTA/firmware-flashing** capability in this app. Don't rely
 on any of this for unattended operation.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE). The bundled Nunito font is under the SIL Open Font License
+(`app/src/main/assets/fonts/OFL-Nunito.txt`).

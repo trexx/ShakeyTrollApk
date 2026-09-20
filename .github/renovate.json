@@ -6,6 +6,14 @@
   ],
   "enabledManagers": [
     "gradle",
+    "gradle-wrapper",
     "github-actions"
+  ],
+  "packageRules": [
+    {
+      "description": "The workflow JDK only runs Gradle (the build toolchain is JDK 25 via Foojay); only track LTS releases (21, 25).",
+      "matchDepNames": ["java-jdk"],
+      "allowedVersions": "/^(21|25)(\\..*)?$/"
+    }
   ]
 }
