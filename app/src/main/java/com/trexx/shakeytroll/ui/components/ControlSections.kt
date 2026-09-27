@@ -99,7 +99,7 @@ fun ControlSections(
       )
       when {
         exhausted -> Text(
-          stringResource(R.string.timer_budget_exhausted, motor ?: 0, SleepytrollCommands.RUN_TIMER_CAP_MIN),
+          stringResource(R.string.timer_budget_exhausted, motor, SleepytrollCommands.RUN_TIMER_CAP_MIN),
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.error,
         )

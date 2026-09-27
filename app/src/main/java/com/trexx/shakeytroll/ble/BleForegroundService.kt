@@ -238,7 +238,7 @@ class BleForegroundService : Service() {
     )
     setState(ConnState.CONNECTING)
     logEvent("Connecting ${device.address}")
-    bluetoothGatt = device.connectGatt(this, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+    bluetoothGatt = openGatt(device)
   }
 
   /** Queue an ASCII AT command (e.g. "AT+BH=01;"). Writes go out one at a time, in order. */
@@ -514,8 +514,16 @@ class BleForegroundService : Service() {
   private val reconnectRunnable = Runnable {
     if (manualDisconnect) return@Runnable
     val device = lastDevice ?: return@Runnable
-    bluetoothGatt = device.connectGatt(this, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+    bluetoothGatt = openGatt(device)
   }
+
+  // API 37 deprecates every Context-based connectGatt overload in favour of
+  // connectGatt(BluetoothGattConnectionSettings, Executor, BluetoothGattCallback), which does not
+  // exist on API 36 (minSdk). The old overload still works on 37, so keep one call path until
+  // minSdk reaches 37 rather than branching the BLE connect flow per API level.
+  @Suppress("DEPRECATION")
+  private fun openGatt(device: BluetoothDevice): BluetoothGatt? =
+    device.connectGatt(this, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
 
   private fun maybeReconnect() {
     if (manualDisconnect) { setState(ConnState.DISCONNECTED); return }
