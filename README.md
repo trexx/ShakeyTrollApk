@@ -64,6 +64,15 @@ permission, so it can't reach any of the above even if it wanted to.
   sensitivities, time left on the run timer, serial + firmware version, and usage counters (motor
   minutes of 180, device total, battery cycles). Controls follow what the device reports, with a
   1.5 s window after you touch one so a stale status frame can't yank it back.
+- **Sensor-mode clarity.** The main control names the current mode and only says *Listening…*
+  (with a slow ripple) when sensor or baby-monitor mode is armed; the same standby state in
+  continuous mode reads as stopped, dimmed. A rocking bout the sensor started shows how long it
+  has run. A **Sensor activity** card shows when the sensor last tripped, how many times and for
+  how long it rocked in the last hour, and a one-hour strip of those bouts. Triggers are inferred
+  from the run state (standby → rocking edges the app didn't cause), since the firmware reports
+  nothing more specific. If no status arrives for 5 s the control stops animating and dims, and
+  a caption counts the silence. The notification follows suit (sensor listening, last trigger
+  time, or "No status from the device").
 - Warning banners for **low battery** (<6 %) and the device's **3-hour "needs to rest"** notice;
   standby is shown on the main control itself. The theme follows the system light/dark setting.
 - Optional **keep-alive** switch: while the device reports it is rocking, the app re-arms the

@@ -78,6 +78,9 @@ class BleForegroundService : Service() {
     private const val REARM_GRACE_MS = 10_000L          // our own stop/start reads as "stopped" briefly
     private const val REARM_MIN_GAP_MS = 5L * 60 * 1000 // never re-arm more often than this
     private const val REARM_VERIFY_TIMEOUT_MS = 90_000L // channel 3 is ~1 Hz; the counter should drop fast
+
+    /** Channel 2 arrives ~1/s; this long without a frame means the shown state may be out of date. */
+    const val STATUS_STALE_MS = 5_000L
   }
 
   private enum class Origin { USER, KEEPALIVE, HANDSHAKE }
@@ -108,6 +111,20 @@ class BleForegroundService : Service() {
 
   private val _connectionState = MutableStateFlow(ConnState.DISCONNECTED)
   val connectionState = _connectionState.asStateFlow()
+
+  /** elapsedRealtime of the last channel-2 frame, so the UI can say when the status is old. */
+  private val _lastStatusAt = MutableStateFlow<Long?>(null)
+  val lastStatusAt = _lastStatusAt.asStateFlow()
+  private var statusStale = false
+
+  // ---- sensor-mode activity --------------------------------------------------
+  private val sensorTracker = SensorActivityTracker()
+  private val _sensorActivity = MutableStateFlow(SensorActivity())
+  val sensorActivity = _sensorActivity.asStateFlow()
+
+  // Last mode the device reported (channel 3, 1..3) or the user selected, whichever came last.
+  // Channel 3's first byte may carry other stage values on some firmware; those don't count.
+  private var knownMode: Int? = null
 
   private var lastDevice: BluetoothDevice? = null
   private var retries = 0
@@ -194,10 +211,20 @@ class BleForegroundService : Service() {
       ConnState.RECONNECTING -> getString(R.string.notif_reconnecting, name)
       ConnState.CONNECTED -> {
         val t = _telemetry.value
+        val sensor = SleepytrollProtocol.isSensorMode(knownMode)
+        val activity = _sensorActivity.value
+        // Absolute clock times, not "N min ago": the text stays true without re-posting.
+        val bout = activity.currentBout
+        val lastTrigger = activity.lastTriggerMs
         when {
           t == null -> getString(R.string.notif_connected, name)
+          statusStale -> getString(R.string.notif_connected_stale, name)
+          t.running && bout != null -> getString(R.string.notif_connected_triggered, name, t.speed, clock(bout.startMs))
           t.running -> getString(R.string.notif_connected_rocking, name, t.speed)
-          t.standby -> getString(R.string.notif_connected_listening, name)
+          // Run state 3 only means "listening" when a sensor mode is armed; otherwise it's stopped.
+          t.standby && sensor && lastTrigger != null ->
+            getString(R.string.notif_connected_listening_last, name, clock(lastTrigger))
+          t.standby && sensor -> getString(R.string.notif_connected_listening, name)
           else -> getString(R.string.notif_connected_stopped, name)
         }
       }
@@ -228,6 +255,12 @@ class BleForegroundService : Service() {
   fun connect(device: BluetoothDevice) {
     handler.removeCallbacks(reconnectRunnable)
     disconnectGatt()
+    if (device.address != lastDevice?.address) {
+      // Another rocker: its triggers and mode have nothing to do with the last one's.
+      sensorTracker.clear()
+      _sensorActivity.value = sensorTracker.activity
+      knownMode = null
+    }
     manualDisconnect = false
     retries = 0
     lastDevice = device
@@ -302,8 +335,11 @@ class BleForegroundService : Service() {
           cancelPendingRearm(reason = "user stopped rocking")
         }
         cmd == SleepytrollProtocol.START -> userStoppedAt = null
+        else -> SleepytrollProtocol.modeOf(cmd)?.let { knownMode = it }
       }
     }
+    // Any start we send (the user's, or the keep-alive's re-arm) is not the sensor tripping.
+    if (cmd == SleepytrollProtocol.START) sensorTracker.noteManualStart(SystemClock.elapsedRealtime())
     writeQueue.addLast(Write(cmd, origin))
     drainWrites()
   }
@@ -356,6 +392,16 @@ class BleForegroundService : Service() {
     runStartedAt = null
     rearmAt = null
     motorMinutesAtRearm = null
+    handler.removeCallbacks(staleRunnable)
+    statusStale = false
+    _lastStatusAt.value = null
+    sensorTracker.onLinkLost()
+    _sensorActivity.value = sensorTracker.activity
+  }
+
+  private val staleRunnable = Runnable {
+    statusStale = true
+    updateNotification()
   }
 
   // ---- keep-alive ---------------------------------------------------------
@@ -553,7 +599,15 @@ class BleForegroundService : Service() {
         _events.tryEmit(BleEvent.Info("id: $body"))
       }
       '2' -> SleepytrollProtocol.parseStatus(body)?.let { t ->
+        val now = SystemClock.elapsedRealtime()
         _telemetry.value = t
+        _lastStatusAt.value = now
+        statusStale = false
+        handler.removeCallbacks(staleRunnable)
+        handler.postDelayed(staleRunnable, STATUS_STALE_MS)
+        if (sensorTracker.onStatus(t.running, SleepytrollProtocol.isSensorMode(knownMode), now)) {
+          _sensorActivity.value = sensorTracker.activity
+        }
         if (t.running) _motorWarning.value = null // resumed → clear the rest notice
         _events.tryEmit(BleEvent.Status(t))
         updateNotification()
@@ -561,6 +615,7 @@ class BleForegroundService : Service() {
       }
       '3' -> {
         _deviceInfo.value = SleepytrollProtocol.parseCounters(body, _deviceInfo.value ?: DeviceInfo())
+        _deviceInfo.value?.mode?.takeIf { it in 1..3 }?.let { knownMode = it }
         evaluateKeepAlive()
       }
       '4' -> when (val c = SleepytrollProtocol.classifyChannel4(body)) {

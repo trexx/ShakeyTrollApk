@@ -23,8 +23,11 @@
   <string name="hero_desc_awaiting">Waiting for status</string>
   <!-- %1$d speed percent -->
   <string name="hero_desc_stopped" tools:ignore="PluralsCandidate">Stopped, speed %1$d percent</string>
-  <string name="hero_desc_standby" tools:ignore="PluralsCandidate">Listening for the baby, speed %1$d percent</string>
+  <string name="hero_desc_listening" tools:ignore="PluralsCandidate">Listening for the baby, speed %1$d percent</string>
   <string name="hero_desc_running" tools:ignore="PluralsCandidate">Rocking at %1$d percent</string>
+  <string name="hero_desc_triggered" tools:ignore="PluralsCandidate">Rocking at %1$d percent, started by the sensor</string>
+  <!-- %1$s one of the descriptions above -->
+  <string name="hero_desc_stale">%1$s, no recent update from the device</string>
   <string name="hero_tap_to_connect">Tap to connect</string>
   <string name="hero_find_caption">Find your Sleepytroll</string>
   <string name="hero_connecting">Connecting…</string>
@@ -32,11 +35,40 @@
   <string name="hero_tap_to_start">Tap to start</string>
   <string name="hero_listening">Listening…</string>
   <string name="hero_rocking">Rocking</string>
+  <!-- %1$s time since the sensor started this bout, as M:SS -->
+  <string name="hero_triggered_for">Triggered · %1$s</string>
 
   <!-- Home -->
   <!-- %1$s the device's channel-4 reply text -->
   <string name="ack_caption">Device replied: %1$s</string>
   <string name="speed_label">Speed</string>
+  <plurals name="status_stale_seconds">
+    <item quantity="one">No update from the device for %d second</item>
+    <item quantity="other">No update from the device for %d seconds</item>
+  </plurals>
+
+  <!-- Sensor activity card (sensor and baby-monitor modes) -->
+  <string name="sensor_title">Sensor activity</string>
+  <string name="sensor_just_now">just now</string>
+  <plurals name="sensor_minutes_ago">
+    <item quantity="one">%d min ago</item>
+    <item quantity="other">%d min ago</item>
+  </plurals>
+  <!-- %1$s relative time, e.g. "4 min ago" -->
+  <string name="sensor_last_trigger">Last triggered %1$s</string>
+  <string name="sensor_rocking_now">Triggered %1$s · rocking now</string>
+  <string name="sensor_no_triggers">No triggers in the last hour</string>
+  <!-- %1$d trigger count, %2$d minutes rocked -->
+  <plurals name="sensor_triggers_summary">
+    <item quantity="one">%1$d trigger in the last hour · rocked %2$d min</item>
+    <item quantity="other">%1$d triggers in the last hour · rocked %2$d min</item>
+  </plurals>
+  <plurals name="sensor_timeline_desc">
+    <item quantity="one">Trigger timeline for the last hour: %1$d trigger, rocked %2$d minutes</item>
+    <item quantity="other">Trigger timeline for the last hour: %1$d triggers, rocked %2$d minutes</item>
+  </plurals>
+  <string name="sensor_timeline_start">1 h ago</string>
+  <string name="sensor_timeline_end">now</string>
 
   <!-- Scan sheet -->
   <string name="scan_title">Find your Sleepytroll</string>
@@ -119,7 +151,12 @@
   <string name="notif_connected">Connected to %1$s</string>
   <!-- %1$s device name, %2$d speed percent -->
   <string name="notif_connected_rocking">Connected to %1$s · Rocking %2$d%%</string>
-  <string name="notif_connected_listening">Connected to %1$s · Listening</string>
+  <string name="notif_connected_listening">Connected to %1$s · Sensor listening</string>
+  <!-- %1$s device name, %2$s clock time of the last sensor trigger -->
+  <string name="notif_connected_listening_last">Connected to %1$s · Sensor listening · last trigger %2$s</string>
+  <!-- %1$s device name, %2$d speed percent, %3$s clock time the sensor started this bout -->
+  <string name="notif_connected_triggered">Connected to %1$s · Rocking %2$d%% · triggered %3$s</string>
+  <string name="notif_connected_stale">Connected to %1$s · No status from the device</string>
   <string name="notif_connected_stopped">Connected to %1$s · Stopped</string>
 
   <!-- Keep-alive status (shown under the switch) and device warnings -->

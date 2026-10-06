@@ -60,6 +60,14 @@ object SleepytrollProtocol {
   const val STOP = "AT+BH=00;"
   const val HANDSHAKE = "AT+OK;"          // client-present ack the device expects after connect
   const val RUN_TIMER_PREFIX = "AT+ST="   // AT+ST=<minutes as hex byte>;
+  const val MODE_PREFIX = "AT+MODE="      // AT+MODE=<01|02|03 decimal>;
+
+  /** Sensor (2) and baby-monitor (3) modes rock only when the baby trips a sensor. */
+  fun isSensorMode(mode: Int?): Boolean = mode == 2 || mode == 3
+
+  /** The mode an "AT+MODE=0N;" command selects, or null for anything else. */
+  fun modeOf(cmd: String): Int? =
+    cmd.takeIf { it.startsWith(MODE_PREFIX) }?.removePrefix(MODE_PREFIX)?.trimEnd(';')?.toIntOrNull()
 
   /** Split "N,payload" into the channel digit and trimmed body; null when there is no prefix. */
   fun splitChannel(line: String): Pair<Char, String>? {
