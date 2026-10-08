@@ -30,19 +30,25 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.trexx.shakeytroll.R
+import com.trexx.shakeytroll.ble.BleForegroundService
 import com.trexx.shakeytroll.ble.ConnState
 import com.trexx.shakeytroll.ble.DeviceInfo
+import com.trexx.shakeytroll.ble.SensorActivity
 import com.trexx.shakeytroll.ble.Telemetry
 import com.trexx.shakeytroll.commands.CommandUiState
+import com.trexx.shakeytroll.commands.SleepytrollCommands
 import com.trexx.shakeytroll.ui.components.ControlSections
 import com.trexx.shakeytroll.ui.components.HeroRockingControl
 import com.trexx.shakeytroll.ui.components.HeroState
 import com.trexx.shakeytroll.ui.components.ScanSheet
+import com.trexx.shakeytroll.ui.components.SensorActivityCard
 import com.trexx.shakeytroll.ui.components.StatusHeader
 import com.trexx.shakeytroll.ui.components.heroState
+import com.trexx.shakeytroll.ui.components.rememberElapsedRealtime
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
@@ -54,8 +60,8 @@ fun HomeScreen(
   deviceInfo: DeviceInfo?,
   motorWarning: String?,
   ack: Pair<Int, String>?,
-  keepAlive: Boolean,
-  keepAliveStatus: String?,
+  sensorActivity: SensorActivity,
+  lastStatusAt: Long?,
   devices: List<BluetoothDevice>,
   scanning: Boolean,
   scanError: String?,
@@ -66,7 +72,6 @@ fun HomeScreen(
   onSlider: (String, Int) -> Unit,
   onOption: (String, Int) -> Unit,
   onAction: (String) -> Unit,
-  onKeepAlive: (Boolean) -> Unit,
   onStartScan: () -> Unit,
   onStopScan: () -> Unit,
   onConnect: (BluetoothDevice) -> Unit,
@@ -77,6 +82,12 @@ fun HomeScreen(
   val byId = uiState.associateBy { it.id }
   var showSheet by rememberSaveable { mutableStateOf(false) }
   val connected = connState == ConnState.CONNECTED
+  val now by rememberElapsedRealtime()
+  // The Mode control already merges what the device reports with what the user just picked.
+  val modeControl = byId[SleepytrollCommands.MODE]
+  val sensorMode = modeControl?.selectedIndex in 1..2 // sensor, baby monitor
+  val statusAgeMs = lastStatusAt?.takeIf { connected && telemetry != null }?.let { now - it }
+  val stale = statusAgeMs != null && statusAgeMs > BleForegroundService.STATUS_STALE_MS
 
   Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
     Column(
@@ -96,24 +107,33 @@ fun HomeScreen(
       )
 
       Spacer(Modifier.height(20.dp))
-      val hero = heroState(connState, telemetry, byId["bh"], byId["fr"])
+      val hero = heroState(connState, telemetry, byId["bh"], byId["fr"], sensorMode, sensorActivity.currentBout)
       Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         HeroRockingControl(
           state = hero,
+          modeLabel = modeControl?.takeIf { telemetry != null && connected }
+            ?.let { stringResource(it.options[it.selectedIndex]) },
           timerText = telemetry?.takeIf { it.running && it.timerSeconds > 0 }?.timerText,
+          nowMs = now,
+          stale = stale,
           onTap = {
             when (hero) {
               HeroState.Disconnected ->
                 if (permissionsGranted) showSheet = true else onRequestPermissions()
               is HeroState.Running -> onToggle("bh", false)
-              is HeroState.Stopped, is HeroState.Standby -> onToggle("bh", true)
+              is HeroState.Stopped, is HeroState.Listening -> onToggle("bh", true)
               else -> {}
             }
           },
         )
       }
 
-      AckCaption(ack)
+      if (stale) StaleCaption((statusAgeMs / 1000).toInt()) else AckCaption(ack)
+
+      if (connected && sensorMode) {
+        SensorActivityCard(sensorActivity, now)
+        Spacer(Modifier.height(16.dp))
+      }
 
       byId["fr"]?.let { fr ->
         SpeedSlider(fr, enabled = connected, onSlider = onSlider)
@@ -125,9 +145,6 @@ fun HomeScreen(
         telemetry = telemetry,
         deviceInfo = deviceInfo,
         enabled = connected,
-        keepAlive = keepAlive,
-        keepAliveStatus = keepAliveStatus,
-        onKeepAlive = onKeepAlive,
         onSlider = onSlider,
         onOption = onOption,
         onAction = onAction,
@@ -152,6 +169,18 @@ fun HomeScreen(
       onDisconnect = onDisconnect,
       onRequestPermissions = onRequestPermissions,
       onDismiss = { showSheet = false },
+    )
+  }
+}
+
+/** Takes the ack caption's slot while the device has gone quiet, so the hero isn't trusted blindly. */
+@Composable
+private fun StaleCaption(seconds: Int) {
+  Box(Modifier.fillMaxWidth().height(24.dp), contentAlignment = Alignment.Center) {
+    Text(
+      pluralStringResource(R.plurals.status_stale_seconds, seconds, seconds),
+      style = MaterialTheme.typography.labelMedium,
+      color = MaterialTheme.colorScheme.error,
     )
   }
 }

@@ -42,7 +42,7 @@ import java.util.UUID
  * The phone writes ASCII AT commands (terminated with ';') to the write characteristic with
  * *write-without-response*, and the device streams back channel-tagged telemetry lines
  * ("N,payload\r\n") on the notify characteristic. Decoding lives in [SleepytrollProtocol];
- * this class owns the connection, the write queue and the keep-alive. See SLEEPYTROLL_PROTOCOL.md.
+ * this class owns the connection, the write queue and the notification. See SLEEPYTROLL_PROTOCOL.md.
  *
  * Threading: every GATT callback is re-posted to the main looper, so all mutable state below is
  * touched on the main thread only. The public API is called from the Activity (main thread).
@@ -72,16 +72,11 @@ class BleForegroundService : Service() {
     // callback never arrives, release the queue after this long rather than wedge forever.
     private const val WRITE_TIMEOUT_MS = 2_000L
 
-    // Keep-alive: re-arm before the device's hard 3-hour (180 min) auto-off. See PROTOCOL §4a.
-    private const val REARM_MOTOR_MIN_DEFAULT = 165
-    private const val REARM_ELAPSED_MS_DEFAULT = 165L * 60 * 1000
-    private const val REARM_GRACE_MS = 10_000L          // our own stop/start reads as "stopped" briefly
-    private const val REARM_MIN_GAP_MS = 5L * 60 * 1000 // never re-arm more often than this
-    private const val REARM_VERIFY_TIMEOUT_MS = 90_000L // channel 3 is ~1 Hz; the counter should drop fast
+    /** Channel 2 arrives ~1/s; this long without a frame means the shown state may be out of date. */
+    const val STATUS_STALE_MS = 5_000L
   }
 
-  private enum class Origin { USER, KEEPALIVE, HANDSHAKE }
-  private data class Write(val cmd: String, val origin: Origin)
+  private enum class Origin { USER, HANDSHAKE }
 
   private val binder = LocalBinder()
   private val handler = Handler(Looper.getMainLooper())
@@ -90,7 +85,7 @@ class BleForegroundService : Service() {
   private var notifyChar: BluetoothGattCharacteristic? = null
   private val lines = LineAssembler()
 
-  private val writeQueue = ArrayDeque<Write>()
+  private val writeQueue = ArrayDeque<String>()
   private var writeInFlight = false
 
   private val _events = MutableSharedFlow<BleEvent>(replay = 0, extraBufferCapacity = 32)
@@ -109,25 +104,23 @@ class BleForegroundService : Service() {
   private val _connectionState = MutableStateFlow(ConnState.DISCONNECTED)
   val connectionState = _connectionState.asStateFlow()
 
+  /** elapsedRealtime of the last channel-2 frame, so the UI can say when the status is old. */
+  private val _lastStatusAt = MutableStateFlow<Long?>(null)
+  val lastStatusAt = _lastStatusAt.asStateFlow()
+  private var statusStale = false
+
+  // ---- sensor-mode activity --------------------------------------------------
+  private val sensorTracker = SensorActivityTracker()
+  private val _sensorActivity = MutableStateFlow(SensorActivity())
+  val sensorActivity = _sensorActivity.asStateFlow()
+
+  // Last mode the device reported (channel 3, 1..3) or the user selected, whichever came last.
+  // Channel 3's first byte may carry other stage values on some firmware; those don't count.
+  private var knownMode: Int? = null
+
   private var lastDevice: BluetoothDevice? = null
   private var retries = 0
   private var manualDisconnect = false
-
-  // ---- keep-alive state ----------------------------------------------------
-  private val _keepAliveEnabled = MutableStateFlow(false)
-  val keepAliveEnabled = _keepAliveEnabled.asStateFlow()
-
-  /** Human-readable outcome of the last re-arm, shown under the switch. */
-  private val _keepAliveStatus = MutableStateFlow<String?>(null)
-  val keepAliveStatus = _keepAliveStatus.asStateFlow()
-
-  private var lastRunTimeCommand: String? = null // last AT+ST=..; the user sent, re-issued on re-arm
-  private var runStartedAt: Long? = null         // elapsedRealtime when the device reported running
-  private var userStoppedAt: Long? = null        // elapsedRealtime of the user's last stop command
-  private var rearmAt: Long? = null              // elapsedRealtime of the last re-arm
-  private var motorMinutesAtRearm: Int? = null   // channel-3 counter when we re-armed, for verification
-  private var rearmMotorMin = REARM_MOTOR_MIN_DEFAULT
-  private var rearmElapsedMs = REARM_ELAPSED_MS_DEFAULT
 
   inner class LocalBinder : Binder() {
     fun getService(): BleForegroundService = this@BleForegroundService
@@ -194,10 +187,20 @@ class BleForegroundService : Service() {
       ConnState.RECONNECTING -> getString(R.string.notif_reconnecting, name)
       ConnState.CONNECTED -> {
         val t = _telemetry.value
+        val sensor = SleepytrollProtocol.isSensorMode(knownMode)
+        val activity = _sensorActivity.value
+        // Absolute clock times, not "N min ago": the text stays true without re-posting.
+        val bout = activity.currentBout
+        val lastTrigger = activity.lastTriggerMs
         when {
           t == null -> getString(R.string.notif_connected, name)
+          statusStale -> getString(R.string.notif_connected_stale, name)
+          t.running && bout != null -> getString(R.string.notif_connected_triggered, name, t.speed, clock(bout.startMs))
           t.running -> getString(R.string.notif_connected_rocking, name, t.speed)
-          t.standby -> getString(R.string.notif_connected_listening, name)
+          // Run state 3 only means "listening" when a sensor mode is armed; otherwise it's stopped.
+          t.standby && sensor && lastTrigger != null ->
+            getString(R.string.notif_connected_listening_last, name, clock(lastTrigger))
+          t.standby && sensor -> getString(R.string.notif_connected_listening, name)
           else -> getString(R.string.notif_connected_stopped, name)
         }
       }
@@ -228,6 +231,12 @@ class BleForegroundService : Service() {
   fun connect(device: BluetoothDevice) {
     handler.removeCallbacks(reconnectRunnable)
     disconnectGatt()
+    if (device.address != lastDevice?.address) {
+      // Another rocker: its triggers and mode have nothing to do with the last one's.
+      sensorTracker.clear()
+      _sensorActivity.value = sensorTracker.activity
+      knownMode = null
+    }
     manualDisconnect = false
     retries = 0
     lastDevice = device
@@ -253,39 +262,6 @@ class BleForegroundService : Service() {
     leaveForeground()
   }
 
-  /**
-   * Work around the device's 3-hour *runtime* auto-off.
-   *
-   * While enabled and the device reports that it is rocking, the service re-arms the firmware's
-   * minute counter shortly before the cap by sending stop → start → the last run-timer command
-   * (PROTOCOL §4a, option 1), then confirms on the following channel-3 frames that the motor-minute
-   * counter dropped. The trigger is evaluated on every telemetry frame (~1 Hz) rather than by a
-   * wall-clock timer, so it needs no alarms, survives Doze, and cannot fire while the device is
-   * stopped: nothing here ever starts a motor that telemetry doesn't already report as running, and
-   * a user stop cancels any queued re-arm. If the counter does not drop, keep-alive switches itself
-   * off and says so, because on that firmware the sequence doesn't work.
-   *
-   * CAVEAT: this only targets the 3-hour runtime cap. Sensor/baby-monitor mode has its own,
-   * separate per-bout and per-session duration limits (firmware counters, no AT command — see
-   * FIRMWARE_ANALYSIS.md §6a) that this does NOT reset. So keep-alive is really a
-   * continuous/manual-mode feature, not a way to run sensor mode indefinitely.
-   */
-  fun setKeepAlive(enabled: Boolean) {
-    _keepAliveEnabled.value = enabled
-    if (!enabled) {
-      cancelPendingRearm(reason = null)
-      _keepAliveStatus.value = null
-    }
-    logEvent("Keep-alive ${if (enabled) "on" else "off"}")
-  }
-
-  /** Debug builds only: shrink the thresholds so a re-arm can be watched in minutes, not hours. */
-  fun setRearmThresholdsForTesting(motorMin: Int, elapsedMin: Int) {
-    rearmMotorMin = motorMin
-    rearmElapsedMs = elapsedMin * 60_000L
-    logEvent("Keep-alive test thresholds: motor ≥ $motorMin min or running ≥ $elapsedMin min")
-  }
-
   // ---- write queue --------------------------------------------------------
 
   private fun enqueue(cmd: String, origin: Origin) {
@@ -293,18 +269,10 @@ class BleForegroundService : Service() {
       logEvent("Not connected, dropped $cmd")
       return
     }
-    if (origin == Origin.USER) {
-      when {
-        cmd.startsWith(SleepytrollProtocol.RUN_TIMER_PREFIX) -> lastRunTimeCommand = cmd
-        // The user pressing stop wins over any re-arm that is queued or about to be evaluated.
-        cmd == SleepytrollProtocol.STOP -> {
-          userStoppedAt = SystemClock.elapsedRealtime()
-          cancelPendingRearm(reason = "user stopped rocking")
-        }
-        cmd == SleepytrollProtocol.START -> userStoppedAt = null
-      }
-    }
-    writeQueue.addLast(Write(cmd, origin))
+    if (origin == Origin.USER) SleepytrollProtocol.modeOf(cmd)?.let { knownMode = it }
+    // A start we send is not the sensor tripping.
+    if (cmd == SleepytrollProtocol.START) sensorTracker.noteManualStart(SystemClock.elapsedRealtime())
+    writeQueue.addLast(cmd)
     drainWrites()
   }
 
@@ -313,17 +281,17 @@ class BleForegroundService : Service() {
     val g = bluetoothGatt ?: return
     val ch = writeChar ?: return
     while (true) {
-      val w = writeQueue.removeFirstOrNull() ?: return
+      val cmd = writeQueue.removeFirstOrNull() ?: return
       val status = g.writeCharacteristic(
-        ch, w.cmd.toByteArray(Charsets.US_ASCII), BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+        ch, cmd.toByteArray(Charsets.US_ASCII), BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
       )
       if (status == BluetoothStatusCodes.SUCCESS) {
         writeInFlight = true
         handler.postDelayed(writeTimeoutRunnable, WRITE_TIMEOUT_MS)
-        logEvent("→ ${w.cmd} (status=$status)")
+        logEvent("→ $cmd (status=$status)")
         return
       }
-      logEvent("→ ${w.cmd} rejected (status=$status)") // 201 = ERROR_GATT_WRITE_REQUEST_BUSY
+      logEvent("→ $cmd rejected (status=$status)") // 201 = ERROR_GATT_WRITE_REQUEST_BUSY
     }
   }
 
@@ -353,68 +321,16 @@ class BleForegroundService : Service() {
     _telemetry.value = null
     _deviceInfo.value = null
     _motorWarning.value = null
-    runStartedAt = null
-    rearmAt = null
-    motorMinutesAtRearm = null
+    handler.removeCallbacks(staleRunnable)
+    statusStale = false
+    _lastStatusAt.value = null
+    sensorTracker.onLinkLost()
+    _sensorActivity.value = sensorTracker.activity
   }
 
-  // ---- keep-alive ---------------------------------------------------------
-
-  private fun cancelPendingRearm(reason: String?) {
-    val removed = writeQueue.removeAll { it.origin == Origin.KEEPALIVE }
-    runStartedAt = null
-    if (removed && reason != null) logEvent("Keep-alive: dropped queued re-arm ($reason)")
-  }
-
-  /** Called after every channel-2 and channel-3 frame. */
-  private fun evaluateKeepAlive() {
-    val now = SystemClock.elapsedRealtime()
-    val t = _telemetry.value ?: return
-    val motor = _deviceInfo.value?.motorMinutes
-    val rearm = rearmAt
-
-    // Verify the last re-arm: the motor counter should drop on the next channel-3 frames.
-    val before = motorMinutesAtRearm
-    if (rearm != null && before != null) {
-      if (motor != null && motor < before) {
-        _keepAliveStatus.value = getString(R.string.keepalive_verified, clock(), before, motor)
-        logEvent("Keep-alive: re-arm verified, motor counter $before → $motor")
-        motorMinutesAtRearm = null
-      } else if (now - rearm > REARM_VERIFY_TIMEOUT_MS) {
-        _keepAliveStatus.value =
-          getString(R.string.keepalive_not_verified, clock(rearm), motor?.toString() ?: "?")
-        logEvent("Keep-alive: re-arm NOT verified, motor counter still $motor; disabling")
-        motorMinutesAtRearm = null
-        _keepAliveEnabled.value = false
-        return
-      }
-    }
-
-    if (!t.running) {
-      // Our own stop/start reads as "stopped" for a frame or two; keep the run anchor through it.
-      if (rearm == null || now - rearm > REARM_GRACE_MS) runStartedAt = null
-      return
-    }
-    val startedAt = runStartedAt ?: now.also { runStartedAt = it }
-    if (!_keepAliveEnabled.value) return
-    userStoppedAt?.let { if (now - it < REARM_GRACE_MS) return } // a stop is in flight
-    if (rearm != null && now - rearm < REARM_MIN_GAP_MS) return
-    val due = (motor != null && motor >= rearmMotorMin) || (now - startedAt >= rearmElapsedMs)
-    if (due) performRearm(now, motor)
-  }
-
-  private fun performRearm(now: Long, motor: Int?) {
-    logEvent("Keep-alive: re-arming (motor counter ${motor ?: "?"} min)")
-    enqueue(SleepytrollProtocol.STOP, Origin.KEEPALIVE)
-    enqueue(SleepytrollProtocol.START, Origin.KEEPALIVE)
-    lastRunTimeCommand?.let { enqueue(it, Origin.KEEPALIVE) }
-    rearmAt = now
-    runStartedAt = now
-    motorMinutesAtRearm = motor?.takeIf { it > 0 } // a zero counter can't be seen to drop
-    _keepAliveStatus.value =
-      if (motorMinutesAtRearm != null) getString(R.string.keepalive_rearmed_verifying, clock())
-      else getString(R.string.keepalive_rearmed_unverifiable, clock())
-    _events.tryEmit(BleEvent.Rearm)
+  private val staleRunnable = Runnable {
+    statusStale = true
+    updateNotification()
   }
 
   private fun clock(elapsedRealtime: Long = SystemClock.elapsedRealtime()): String {
@@ -553,15 +469,22 @@ class BleForegroundService : Service() {
         _events.tryEmit(BleEvent.Info("id: $body"))
       }
       '2' -> SleepytrollProtocol.parseStatus(body)?.let { t ->
+        val now = SystemClock.elapsedRealtime()
         _telemetry.value = t
+        _lastStatusAt.value = now
+        statusStale = false
+        handler.removeCallbacks(staleRunnable)
+        handler.postDelayed(staleRunnable, STATUS_STALE_MS)
+        if (sensorTracker.onStatus(t.running, SleepytrollProtocol.isSensorMode(knownMode), now)) {
+          _sensorActivity.value = sensorTracker.activity
+        }
         if (t.running) _motorWarning.value = null // resumed → clear the rest notice
         _events.tryEmit(BleEvent.Status(t))
         updateNotification()
-        evaluateKeepAlive()
       }
       '3' -> {
         _deviceInfo.value = SleepytrollProtocol.parseCounters(body, _deviceInfo.value ?: DeviceInfo())
-        evaluateKeepAlive()
+        _deviceInfo.value?.mode?.takeIf { it in 1..3 }?.let { knownMode = it }
       }
       '4' -> when (val c = SleepytrollProtocol.classifyChannel4(body)) {
         is Channel4.Ack -> _events.tryEmit(BleEvent.CommandAck(c.text))

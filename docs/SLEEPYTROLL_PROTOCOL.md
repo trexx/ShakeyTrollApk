@@ -138,6 +138,8 @@ channel-2 bytes 5/6/7 (H:M:S).
    or stop+start (`AT+BH=00;`→`AT+BH=01;`) and re-issue `AT+ST`, gives a fresh budget. Schedule
    it every ≤ ~2h45m for effectively unlimited runtime. Validate by watching channel-3 motorTime
    drop back toward 0 after the re-arm.
+   **Tried on hardware: the stop → start → `AT+ST` sequence did not work**, so the app's
+   keep-alive that automated it has been removed. `AT+RESET` + reconnect was not tried.
 2. **Raise the cap:** patch both compare immediates `0xB4 → 0xFF` (file offsets `0x60b6` and
    `0x60e8`, byte `b4 → ff`) → ~4.25 h ceiling. Reflash via `AT+UPDATE` OTA.
 3. **Disable the auto-off (permanent):** make each guard branch unconditional so the flag write

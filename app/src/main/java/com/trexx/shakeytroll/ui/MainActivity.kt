@@ -18,6 +18,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -35,8 +36,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.trexx.shakeytroll.R
 import com.trexx.shakeytroll.ble.BleEvent
 import com.trexx.shakeytroll.ble.BleForegroundService
+import com.trexx.shakeytroll.ble.Bout
 import com.trexx.shakeytroll.ble.ConnState
 import com.trexx.shakeytroll.ble.DeviceInfo
+import com.trexx.shakeytroll.ble.SensorActivity
 import com.trexx.shakeytroll.ble.Telemetry
 import com.trexx.shakeytroll.commands.CommandsViewModel
 import com.trexx.shakeytroll.ui.theme.SleepytrollTheme
@@ -136,9 +139,6 @@ class MainActivity : ComponentActivity() {
     //   adb shell am start -n com.trexx.shakeytroll/.ui.MainActivity --ez demo true
     val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
     val demo = debuggable && intent.getBooleanExtra("demo", false)
-    // Debug-only: shrink the keep-alive thresholds so a re-arm can be watched in minutes:
-    //   adb shell am start -n com.trexx.shakeytroll/.ui.MainActivity --ei rearm_after_min 2
-    val rearmTestMin = intent.getIntExtra("rearm_after_min", 0).takeIf { debuggable && it > 0 }
 
     setContent {
       val viewModel: CommandsViewModel = viewModel()
@@ -148,13 +148,12 @@ class MainActivity : ComponentActivity() {
       var motorWarning by remember { mutableStateOf<String?>(null) }
       var connState by remember { mutableStateOf(ConnState.DISCONNECTED) }
       var ack by remember { mutableStateOf<Pair<Int, String>?>(null) }
-      var keepAlive by remember { mutableStateOf(false) }
-      var keepAliveStatus by remember { mutableStateOf<String?>(null) }
+      var sensorActivity by remember { mutableStateOf(SensorActivity()) }
+      var lastStatusAt by remember { mutableStateOf<Long?>(null) }
 
       LaunchedEffect(service) {
         val svc = service ?: return@LaunchedEffect
         viewModel.sender = { cmd -> svc.sendCommand(cmd) }
-        rearmTestMin?.let { svc.setRearmThresholdsForTesting(motorMin = it, elapsedMin = it) }
         if (demo) return@LaunchedEffect // demo state below must not be overwritten by real flows
         launch {
           svc.telemetry.collect { t ->
@@ -176,13 +175,11 @@ class MainActivity : ComponentActivity() {
             if (state == ConnState.CONNECTED) connectedDevice?.let(::rememberDevice)
           }
         }
-        launch { svc.keepAliveEnabled.collect { keepAlive = it } }
-        launch { svc.keepAliveStatus.collect { keepAliveStatus = it } }
+        launch { svc.sensorActivity.collect { sensorActivity = it } }
+        launch { svc.lastStatusAt.collect { lastStatusAt = it } }
         svc.events.collect { ev ->
           when (ev) {
             is BleEvent.CommandAck -> ack = (ack?.first ?: 0) + 1 to ev.text
-            // The keep-alive's own stop/start must not flip the hero to "Tap to start" for a beat.
-            BleEvent.Rearm -> viewModel.suppress("bh", 5_000)
             else -> {}
           }
         }
@@ -205,6 +202,17 @@ class MainActivity : ComponentActivity() {
             serial = "ST-2044", version = "2.4", mode = 2,
             batteryCycles = 27, deviceTotalMin = 340, motorMinutes = 12,
           )
+          // A busy-ish hour in sensor mode: three earlier bouts and one rocking now.
+          val now = SystemClock.elapsedRealtime()
+          fun min(m: Int) = m * 60_000L
+          sensorActivity = SensorActivity(
+            listOf(
+              Bout(now - min(52), now - min(49)),
+              Bout(now - min(31), now - min(27)),
+              Bout(now - min(12), now - min(10)),
+              Bout(now - min(2) - 13_000),
+            )
+          )
           viewModel.syncFromTelemetry(t)
           viewModel.syncMode(2)
           viewModel.syncRunTimerBudget(12)
@@ -219,8 +227,8 @@ class MainActivity : ComponentActivity() {
           deviceInfo = deviceInfo,
           motorWarning = motorWarning,
           ack = ack,
-          keepAlive = keepAlive,
-          keepAliveStatus = keepAliveStatus,
+          sensorActivity = sensorActivity,
+          lastStatusAt = lastStatusAt,
           devices = foundDevices,
           scanning = scanning,
           scanError = scanError,
@@ -231,7 +239,6 @@ class MainActivity : ComponentActivity() {
           onSlider = viewModel::onSlider,
           onOption = viewModel::onOption,
           onAction = viewModel::onAction,
-          onKeepAlive = { if (demo) keepAlive = it else service?.setKeepAlive(it) },
           onStartScan = ::startScan,
           onStopScan = ::stopScan,
           onConnect = ::connectTo,

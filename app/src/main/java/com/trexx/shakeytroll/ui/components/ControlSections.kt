@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -16,7 +15,6 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -46,9 +44,6 @@ fun ControlSections(
   telemetry: Telemetry?,
   deviceInfo: DeviceInfo?,
   enabled: Boolean,
-  keepAlive: Boolean,
-  keepAliveStatus: String?,
-  onKeepAlive: (Boolean) -> Unit,
   onSlider: (String, Int) -> Unit,
   onOption: (String, Int) -> Unit,
   onAction: (String) -> Unit,
@@ -115,22 +110,6 @@ fun ControlSections(
           style = MaterialTheme.typography.labelMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-      }
-      Spacer(Modifier.height(10.dp))
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-          Text(stringResource(R.string.keepalive_title), style = MaterialTheme.typography.bodyMedium)
-          Text(
-            stringResource(R.string.keepalive_caption),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
-        Switch(checked = keepAlive, onCheckedChange = onKeepAlive, enabled = enabled)
-      }
-      keepAliveStatus?.let {
-        Spacer(Modifier.height(4.dp))
-        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
       }
     }
     Spacer(Modifier.height(12.dp))

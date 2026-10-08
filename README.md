@@ -64,15 +64,17 @@ permission, so it can't reach any of the above even if it wanted to.
   sensitivities, time left on the run timer, serial + firmware version, and usage counters (motor
   minutes of 180, device total, battery cycles). Controls follow what the device reports, with a
   1.5 s window after you touch one so a stale status frame can't yank it back.
+- **Sensor-mode clarity.** The main control names the current mode and only says *Listening…*
+  (with a slow ripple) when sensor or baby-monitor mode is armed; the same standby state in
+  continuous mode reads as stopped, dimmed. A rocking bout the sensor started shows how long it
+  has run. A **Sensor activity** card shows when the sensor last tripped, how many times and for
+  how long it rocked in the last hour, and a one-hour strip of those bouts. Triggers are inferred
+  from the run state (standby → rocking edges the app didn't cause), since the firmware reports
+  nothing more specific. If no status arrives for 5 s the control stops animating and dims, and
+  a caption counts the silence. The notification follows suit (sensor listening, last trigger
+  time, or "No status from the device").
 - Warning banners for **low battery** (<6 %) and the device's **3-hour "needs to rest"** notice;
   standby is shown on the main control itself. The theme follows the system light/dark setting.
-- Optional **keep-alive** switch: while the device reports it is rocking, the app re-arms the
-  firmware's 3-hour runtime cap shortly before it hits — at 165 motor-minutes on the channel-3
-  counter, or after 2 h 45 m of running if that counter is missing — by sending stop → start → the
-  last run-timer command, then confirms on the next status frames that the motor counter dropped
-  and says so under the switch. It never starts a motor the device doesn't already report as
-  running, a manual stop cancels any pending re-arm, and if the counter doesn't reset it switches
-  itself off (continuous/manual mode only — see the protocol notes).
 
 ## How it works (protocol in brief)
 
@@ -152,14 +154,6 @@ All user-visible text lives in `app/src/main/res/values/strings.xml`; debug buil
 `en-XA` pseudo-locale (Settings → System → Languages) so a leftover hardcoded string stands out
 as plain English among the accented pseudo-text.
 
-Debug builds also accept `--ei rearm_after_min N`, which lowers both keep-alive thresholds to
-`N` minutes so the stop → start → timer re-arm and its verification can be watched on hardware
-without waiting 2 h 45 m:
-
-```bash
-adb shell am start -n com.trexx.shakeytroll/.ui.MainActivity --ei rearm_after_min 2
-```
-
 ## Releases (GitHub Actions)
 
 Two workflows in `.github/workflows/`:
@@ -218,12 +212,14 @@ the keystore and signs with it; without them, it uses the debug key.
 
 ```
 app/src/main/java/com.trexx.shakeytroll/
-  ble/BleForegroundService.kt   – GATT client, AT commands, telemetry parsing, keep-alive
+  ble/BleForegroundService.kt   – GATT client, AT commands, telemetry parsing, notification
+  ble/SensorActivity.kt         – sensor-trigger tracking (inferred from run-state edges)
   commands/CommandModel.kt      – control definitions (toggle / slider / options / action)
   commands/CommandsViewModel.kt – command building + two-way state sync
   ui/MainActivity.kt            – permissions, BLE scanning, service binding, demo mode
   ui/HomeScreen.kt              – screen composition
-  ui/components/                – StatusHeader, HeroRockingControl, ControlSections, ScanSheet
+  ui/components/                – StatusHeader, HeroRockingControl, SensorActivityCard,
+                                  ControlSections, ScanSheet
   ui/theme/                     – day/night colour schemes, Nunito type, shapes
 docs/                           – protocol, firmware and official-APK reverse-engineering notes
 ```
@@ -231,9 +227,8 @@ docs/                           – protocol, firmware and official-APK reverse-
 ## Safety
 
 The device enforces a **3-hour runtime cap** and **sensor-mode duration limits** in firmware.
-This app surfaces them but does not defeat them; the keep-alive only re-arms the runtime timer in
-continuous/manual mode. There is **no OTA/firmware-flashing** capability in this app. Don't rely
-on any of this for unattended operation.
+This app surfaces them but does not defeat them. There is **no OTA/firmware-flashing** capability
+in this app. Don't rely on any of this for unattended operation.
 
 ## License
 
