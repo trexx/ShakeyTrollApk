@@ -51,10 +51,7 @@ class CommandsViewModel : ViewModel() {
     is CommandModel.Action -> CommandUiState(id, labelRes, "action", confirm = confirm)
   }
 
-  /**
-   * Ignore device-reported values for [id] for the next [ms]. Called after the user touches a
-   * control, and by the Activity around the keep-alive's own stop/start so the hero doesn't flip.
-   */
+  /** Ignore device-reported values for [id] for the next [ms]. Called after the user touches a control. */
   fun suppress(id: String, ms: Long = SUPPRESS_MS) {
     suppressUntil[id] = System.currentTimeMillis() + ms
   }

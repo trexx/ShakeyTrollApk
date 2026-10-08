@@ -38,8 +38,6 @@ sealed class BleEvent {
   data class CommandAck(val text: String) : BleEvent()   // channel 4, e.g. "OK"
   data class Status(val telemetry: Telemetry) : BleEvent() // channel 2
   data class Info(val line: String) : BleEvent()           // channels 1/3/5
-  /** The keep-alive just queued its stop/start/timer re-arm sequence. */
-  data object Rearm : BleEvent()
 }
 
 /** What a channel-4 body means. Routing mirrors the official app (handleFourthPacket). */

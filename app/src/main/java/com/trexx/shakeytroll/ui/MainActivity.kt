@@ -139,9 +139,6 @@ class MainActivity : ComponentActivity() {
     //   adb shell am start -n com.trexx.shakeytroll/.ui.MainActivity --ez demo true
     val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
     val demo = debuggable && intent.getBooleanExtra("demo", false)
-    // Debug-only: shrink the keep-alive thresholds so a re-arm can be watched in minutes:
-    //   adb shell am start -n com.trexx.shakeytroll/.ui.MainActivity --ei rearm_after_min 2
-    val rearmTestMin = intent.getIntExtra("rearm_after_min", 0).takeIf { debuggable && it > 0 }
 
     setContent {
       val viewModel: CommandsViewModel = viewModel()
@@ -151,15 +148,12 @@ class MainActivity : ComponentActivity() {
       var motorWarning by remember { mutableStateOf<String?>(null) }
       var connState by remember { mutableStateOf(ConnState.DISCONNECTED) }
       var ack by remember { mutableStateOf<Pair<Int, String>?>(null) }
-      var keepAlive by remember { mutableStateOf(false) }
-      var keepAliveStatus by remember { mutableStateOf<String?>(null) }
       var sensorActivity by remember { mutableStateOf(SensorActivity()) }
       var lastStatusAt by remember { mutableStateOf<Long?>(null) }
 
       LaunchedEffect(service) {
         val svc = service ?: return@LaunchedEffect
         viewModel.sender = { cmd -> svc.sendCommand(cmd) }
-        rearmTestMin?.let { svc.setRearmThresholdsForTesting(motorMin = it, elapsedMin = it) }
         if (demo) return@LaunchedEffect // demo state below must not be overwritten by real flows
         launch {
           svc.telemetry.collect { t ->
@@ -181,15 +175,11 @@ class MainActivity : ComponentActivity() {
             if (state == ConnState.CONNECTED) connectedDevice?.let(::rememberDevice)
           }
         }
-        launch { svc.keepAliveEnabled.collect { keepAlive = it } }
-        launch { svc.keepAliveStatus.collect { keepAliveStatus = it } }
         launch { svc.sensorActivity.collect { sensorActivity = it } }
         launch { svc.lastStatusAt.collect { lastStatusAt = it } }
         svc.events.collect { ev ->
           when (ev) {
             is BleEvent.CommandAck -> ack = (ack?.first ?: 0) + 1 to ev.text
-            // The keep-alive's own stop/start must not flip the hero to "Tap to start" for a beat.
-            BleEvent.Rearm -> viewModel.suppress("bh", 5_000)
             else -> {}
           }
         }
@@ -239,8 +229,6 @@ class MainActivity : ComponentActivity() {
           ack = ack,
           sensorActivity = sensorActivity,
           lastStatusAt = lastStatusAt,
-          keepAlive = keepAlive,
-          keepAliveStatus = keepAliveStatus,
           devices = foundDevices,
           scanning = scanning,
           scanError = scanError,
@@ -251,7 +239,6 @@ class MainActivity : ComponentActivity() {
           onSlider = viewModel::onSlider,
           onOption = viewModel::onOption,
           onAction = viewModel::onAction,
-          onKeepAlive = { if (demo) keepAlive = it else service?.setKeepAlive(it) },
           onStartScan = ::startScan,
           onStopScan = ::stopScan,
           onConnect = ::connectTo,

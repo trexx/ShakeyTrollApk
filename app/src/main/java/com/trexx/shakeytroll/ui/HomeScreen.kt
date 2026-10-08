@@ -62,8 +62,6 @@ fun HomeScreen(
   ack: Pair<Int, String>?,
   sensorActivity: SensorActivity,
   lastStatusAt: Long?,
-  keepAlive: Boolean,
-  keepAliveStatus: String?,
   devices: List<BluetoothDevice>,
   scanning: Boolean,
   scanError: String?,
@@ -74,7 +72,6 @@ fun HomeScreen(
   onSlider: (String, Int) -> Unit,
   onOption: (String, Int) -> Unit,
   onAction: (String) -> Unit,
-  onKeepAlive: (Boolean) -> Unit,
   onStartScan: () -> Unit,
   onStopScan: () -> Unit,
   onConnect: (BluetoothDevice) -> Unit,
@@ -131,7 +128,7 @@ fun HomeScreen(
         )
       }
 
-      if (stale) StaleCaption(((statusAgeMs ?: 0) / 1000).toInt()) else AckCaption(ack)
+      if (stale) StaleCaption((statusAgeMs / 1000).toInt()) else AckCaption(ack)
 
       if (connected && sensorMode) {
         SensorActivityCard(sensorActivity, now)
@@ -148,9 +145,6 @@ fun HomeScreen(
         telemetry = telemetry,
         deviceInfo = deviceInfo,
         enabled = connected,
-        keepAlive = keepAlive,
-        keepAliveStatus = keepAliveStatus,
-        onKeepAlive = onKeepAlive,
         onSlider = onSlider,
         onOption = onOption,
         onAction = onAction,

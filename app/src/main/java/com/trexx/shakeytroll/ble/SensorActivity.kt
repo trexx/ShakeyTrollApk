@@ -26,7 +26,7 @@ data class SensorActivity(val bouts: List<Bout> = emptyList()) {
  * (see FIRMWARE_ANALYSIS.md §6a), so a trigger is a standby → running edge while the device is in
  * sensor or baby-monitor mode, and the bout lasts until it stops rocking again.
  *
- * Starts the app caused itself (the user's start, the keep-alive's stop/start) are not triggers:
+ * Starts the app sent itself (the user tapping start) are not triggers:
  * [noteManualStart] marks them, and a running edge within [manualGraceMs] of one is ignored.
  * The first frame after a (re)connect only seeds the state, since the edge itself wasn't seen.
  * History is pruned to [windowMs] and survives reconnects; [clear] drops it.

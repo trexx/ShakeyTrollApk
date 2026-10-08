@@ -106,8 +106,6 @@
   <string name="timer_budget_left">Up to %1$d min left before the 3-hour rest</string>
   <!-- %1$s countdown as HH:MM:SS -->
   <string name="timer_time_left">Time left %1$s</string>
-  <string name="keepalive_title">3-hour keep-alive</string>
-  <string name="keepalive_caption">Stop/start re-arm at 165 motor-minutes, only while rocking</string>
   <string name="section_device">Device</string>
   <!-- %1$d motor minutes, %2$d the 180-minute cap -->
   <string name="device_motor_minutes">Motor %1$d min of %2$d</string>
@@ -159,13 +157,6 @@
   <string name="notif_connected_stale">Connected to %1$s · No status from the device</string>
   <string name="notif_connected_stopped">Connected to %1$s · Stopped</string>
 
-  <!-- Keep-alive status (shown under the switch) and device warnings -->
-  <!-- %1$s clock time, %2$d motor counter before, %3$d after -->
-  <string name="keepalive_verified">Re-arm verified %1$s · motor counter %2$d → %3$d min</string>
-  <!-- %1$s clock time, %2$s motor counter value or ? -->
-  <string name="keepalive_not_verified">Re-arm at %1$s did not reset the motor counter (still %2$s min). Keep-alive switched off: it may not work on this firmware.</string>
-  <!-- %1$s clock time -->
-  <string name="keepalive_rearmed_verifying">Re-armed %1$s, verifying…</string>
-  <string name="keepalive_rearmed_unverifiable">Re-armed %1$s (no motor counter to verify against)</string>
+  <!-- Device warnings -->
   <string name="warning_motor_rest">Max rocking time (3 h) reached — device is resting</string>
 </resources>
