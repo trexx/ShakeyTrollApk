@@ -120,13 +120,13 @@ up front instead:
 sdkmanager "platforms;android-37.0" "build-tools;36.0.0"
 ```
 
-One JDK version, set in `gradle/gradle-daemon-jvm.properties`, runs the Gradle daemon, is what
-CI installs, and is the Kotlin bytecode target. You do **not** need to install it yourself: any
+One JDK, Temurin at the version set in `gradle/gradle-daemon-jvm.properties`, runs the Gradle
+daemon, is what CI installs, and is the Kotlin bytecode target. You do **not** need to install it yourself: any
 JDK 17+ can start `./gradlew`, which then runs the build on that version, downloading it if no
 matching JDK is installed. To change the version:
 
 ```bash
-./gradlew updateDaemonJvm --jvm-version=<N>
+./gradlew updateDaemonJvm --jvm-version=<N> --jvm-vendor=adoptium
 ```
 
 ```bash
