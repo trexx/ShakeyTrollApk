@@ -70,21 +70,25 @@ android {
         }
     }
 }
-// gradle/gradle-daemon-jvm.properties is the one place the JDK version is set. Gradle runs its
-// daemon on that JDK, CI's setup-java reads the same line, and compiling with it here makes the
-// bytecode target match. A toolchain number written here as well would drift from the other two.
-// Change it with `./gradlew updateDaemonJvm --jvm-version=<N>`, which also refreshes the download
-// URLs in that file.
-def javaVersion = providers.fileContents(
+// gradle/gradle-daemon-jvm.properties is the one place the JDK version and vendor are set. Gradle
+// runs its daemon on that JDK, CI's setup-java reads the same version, and compiling with it here
+// makes the bytecode target match. A toolchain number written here as well would drift from the
+// other two. Change it with `./gradlew updateDaemonJvm --jvm-version=<N> --jvm-vendor=adoptium`,
+// which also refreshes the download URLs in that file.
+def daemonJvm = providers.fileContents(
         rootProject.layout.projectDirectory.file('gradle/gradle-daemon-jvm.properties'))
         .asText.map { text ->
             def props = new Properties()
             props.load(new StringReader(text))
-            props.getProperty('toolchainVersion') as int
+            props
         }.get()
 
 kotlin {
-    jvmToolchain(javaVersion)
+    jvmToolchain {
+        languageVersion = JavaLanguageVersion.of(daemonJvm.getProperty('toolchainVersion') as int)
+        // updateDaemonJvm writes the vendor as the name of a JvmVendorSpec constant (ADOPTIUM, AZUL, ...).
+        vendor = JvmVendorSpec."${daemonJvm.getProperty('toolchainVendor')}"
+    }
 }
 dependencies {
     implementation platform("androidx.compose:compose-bom:2026.09.00")
