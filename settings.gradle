@@ -6,7 +6,8 @@ pluginManagement {
     }
 }
 plugins {
-    // Auto-provisions the JDK 25 toolchain (jvmToolchain(25)) on any machine/CI that lacks it.
+    // Supplies the download URLs that `updateDaemonJvm` writes into gradle/gradle-daemon-jvm.properties,
+    // so Gradle can fetch the JDK named there on any machine that lacks it.
     id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
 }
 dependencyResolutionManagement {

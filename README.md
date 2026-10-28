@@ -109,7 +109,7 @@ reverse-engineering docs under [`docs/`](docs/):
 | Android Gradle Plugin | see `build.gradle` (Renovate keeps it current) |
 | Gradle | see `gradle/wrapper/gradle-wrapper.properties` (committed wrapper) |
 | Kotlin / Compose compiler plugin | see `build.gradle` (Kotlin ships with AGP 9 — no separate Kotlin plugin) |
-| Java bytecode target | **25** (via `jvmToolchain(25)`) |
+| JDK (runs Gradle, CI, bytecode target) | see `gradle/gradle-daemon-jvm.properties` |
 
 You need the **Android SDK**. The platform for compileSdk 37 is packaged as `platforms;android-37.0`,
 and AGP builds with **build-tools 36.0.0** (its own default, not the newest published). With
@@ -120,10 +120,14 @@ up front instead:
 sdkmanager "platforms;android-37.0" "build-tools;36.0.0"
 ```
 
-To run Gradle you need **a JDK**; JDK 21 is the tested combination (Temurin 21 in CI, Android
-Studio's bundled JBR locally). You do **not** need to install JDK 25 yourself — the Java 25 build
-toolchain is auto-provisioned by the [Foojay resolver](https://github.com/gradle/foojay-toolchains)
-configured in `settings.gradle`.
+One JDK, Temurin at the version set in `gradle/gradle-daemon-jvm.properties`, runs the Gradle
+daemon, is what CI installs, and is the Kotlin bytecode target. You do **not** need to install it yourself: any
+JDK 17+ can start `./gradlew`, which then runs the build on that version, downloading it if no
+matching JDK is installed. To change the version:
+
+```bash
+./gradlew updateDaemonJvm --jvm-version=<N> --jvm-vendor=adoptium
+```
 
 ```bash
 # point Gradle at your SDK (or set ANDROID_HOME); create local.properties once:
